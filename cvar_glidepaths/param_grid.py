@@ -1,10 +1,10 @@
 from itertools import product
 import numpy as np
-from .config import (
-    T_A_YEARS_VALUES, T_B_YEAR,
-)
-from .utils import grid_vals
-from .config import A_MIN, A_MAX, A_STEP, B_MIN, B_MAX, B_STEP
+from cvar_glidepaths.config import (
+    T_A_YEARS_VALUES, T_B_YEAR,)
+
+from cvar_glidepaths.utils import grid_vals
+from cvar_glidepaths.config import A_MIN, A_MAX, A_STEP, B_MIN, B_MAX, B_STEP
 
 # Precompute A and B grids
 A_VALUES = grid_vals(A_MIN, A_MAX, A_STEP)

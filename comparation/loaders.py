@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from .config import LOOP_SHEET_NAME
+from comparation.routes import LOOP_SHEET_NAME
 
 def load_portfolios(loop_file: str) -> pd.DataFrame:
     """

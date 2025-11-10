@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
-from .config import T_START_YEARS, T_END_YEARS, MONTHS
-from .param_grid import generate_param_grid
-from .cvar_piecewise import cvar_piecewise_months
+
+from cvar_glidepaths.config import T_START_YEARS, T_END_YEARS, MONTHS
+from cvar_glidepaths.param_grid import generate_param_grid
+from cvar_glidepaths.cvar_piecewise import cvar_piecewise_months
 
 def build_universe_single_sheet(t_start_y: int = T_START_YEARS, t_B_year: int | None = None) -> pd.DataFrame:
     """

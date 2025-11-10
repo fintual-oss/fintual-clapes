@@ -1,12 +1,12 @@
 import os
 import pandas as pd
 
-from .config import (
+from comparation.routes import (
     BASE_DIR, LOOP_FILE, GLIDES_FILE,
     OUT_DIR, OUT_FILE, SUMMARY_SHEETNAME
 )
-from .loaders import load_portfolios, load_glidepaths
-from .logic import compare_glides_vs_portfolios
+from comparation.loaders import load_portfolios, load_glidepaths
+from comparation.logic import compare_glides_vs_portfolios
 
 def main() -> None:
     """
@@ -36,7 +36,7 @@ def main() -> None:
     # 4) Sort results (same idea as the original script)
     # Example: sort by B (desc), then by pct_ok (desc), then by A (desc)
     result = result.sort_values(
-        by=["B", "pct_ok", "A"],
+        by=["pct_ok", "A", "t_A"],
         ascending=[False, False, False]
     )
 
