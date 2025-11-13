@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 
-from cvar_glidepaths.config import T_B_YEAR, OUTPUT_XLSX
-from cvar_glidepaths.routes import output_dir, output_file
-from cvar_glidepaths.universe import build_universe_single_sheet
+from config import T_B_YEAR, OUTPUT_XLSX
+from routes import output_dir, output_file
+from universe import build_universe_single_sheet
 
 def main() -> None:
     """

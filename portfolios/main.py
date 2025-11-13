@@ -3,12 +3,12 @@ import numpy as np
 import pandas as pd
 
 # Import helper functions from local files
-from portfolios.routes import input_returns_path, output_dir, output_file, export_results
-from portfolios.make_psd import f_make_psd
-from portfolios.simulate_asset_returns import simulate_asset_returns
-from portfolios.weights import f_monthly_weights_sequence
-from portfolios.compute_portfolio_returns import compute_portfolio_returns
-from portfolios.compute_cvar import compute_cvar_series
+from routes import input_returns_path, output_dir, output_file, export_results
+from make_psd import f_make_psd
+from simulate_asset_returns import simulate_asset_returns
+from weights import f_monthly_weights_sequence
+from compute_portfolio_returns import compute_portfolio_returns
+from compute_cvar import compute_cvar_series
 
 # -------------------------------
 # CONFIGURATION

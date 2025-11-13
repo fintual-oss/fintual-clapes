@@ -53,14 +53,24 @@ This folder stores all output files created by the workflows:
 
 ---
 
-## How to run: cd route/fintual-clapes
+## How to run
 
-1. Simulate portfolios 
-- python -m portfolios.main
+### 1. Simulate portfolios
+```bash
+cd fintual-clapes/portfolios
+python main.py
+```
 
-2. Generate glidepaths
-- python -m cvar_glidepaths.main
+### 2. Generate glidepaths
+```bash
+cd fintual-clapes/cvar_glidepaths
+python main.py
+```
 
-3. Compare glidepaths vs portfolios
-- python -m comparation.main
+### 3. Compare glidepaths vs portfolios
+```bash
+cd fintual-clapes/comparation
+python main.py
+```
+
 
