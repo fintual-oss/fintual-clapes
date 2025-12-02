@@ -31,7 +31,7 @@ ALPHA_CVAR = 0.90  # CVaR confidence level (0.90 = worst 10% tail)
 # Portfolio generation
 N_PORTFOLIOS_PER_MONTH = 10  # Number of portfolios to generate per month
 N_TRAJ = 1_000  # Number of Monte Carlo scenarios
-HORIZON_MONTHS = 360  # 30 years
+HORIZON_MONTHS = 480  # 40 years
 
 # Random seeds (for reproducibility)
 RETURNS_SEED = 42  # Seed for simulated returns

@@ -2,7 +2,7 @@
 
 A comprehensive Python-based system for generating, simulating, and analyzing CVaR-constrained portfolio glidepaths for retirement planning. This repository implements a three-stage pipeline that generates thousands of feasible portfolio trajectories and identifies optimal risk management strategies.
 
-## 🎯 What Does This System Do?
+## What Does This System Do?
 
 This system helps answer the question: **"What's the optimal way to adjust portfolio risk as someone approaches retirement?"**
 
