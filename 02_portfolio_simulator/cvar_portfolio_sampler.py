@@ -1,6 +1,74 @@
 import numpy as np
 from scipy.optimize import minimize
 
+# Optional numba import for performance
+try:
+    from numba import jit
+
+    HAS_NUMBA = True
+except ImportError:
+    # Fallback: create a dummy decorator
+    def jit(nopython=True):
+        def decorator(func):
+            return func
+
+        return decorator
+
+    HAS_NUMBA = False
+
+
+@jit(nopython=True)
+def _calculate_cvar_fast(portfolio_returns, confidence_level):
+    """
+    Fast CVaR calculation using numba JIT compilation.
+
+    Parameters:
+    -----------
+    portfolio_returns : array
+        Portfolio returns for all scenarios
+    confidence_level : float
+        CVaR confidence level (e.g., 0.05 for 5% tail)
+
+    Returns:
+    --------
+    cvar : float
+        Conditional Value at Risk
+    """
+    losses = -portfolio_returns
+    # Use numpy partition instead of full sort - O(n) vs O(n log n)
+    n_tail = max(1, int(np.ceil(len(losses) * confidence_level)))
+    tail_losses = np.partition(losses, -n_tail)[-n_tail:]
+    return np.mean(tail_losses)
+
+
+@jit(nopython=True)
+def _batch_calculate_cvar(returns_matrix, weights_matrix, confidence_level):
+    """
+    Vectorized CVaR calculation for multiple portfolios.
+
+    Parameters:
+    -----------
+    returns_matrix : array, shape (n_scenarios, n_assets)
+        Asset returns for all scenarios
+    weights_matrix : array, shape (n_portfolios, n_assets)
+        Portfolio weights matrix
+    confidence_level : float
+        CVaR confidence level
+
+    Returns:
+    --------
+    cvars : array, shape (n_portfolios,)
+        CVaR values for all portfolios
+    """
+    n_portfolios = weights_matrix.shape[0]
+    cvars = np.empty(n_portfolios)
+
+    for i in range(n_portfolios):
+        portfolio_returns = returns_matrix @ weights_matrix[i]
+        cvars[i] = _calculate_cvar_fast(portfolio_returns, confidence_level)
+
+    return cvars
+
 
 class CVaRPortfolioSampler:
     """
@@ -42,10 +110,25 @@ class CVaRPortfolioSampler:
             Conditional Value at Risk
         """
         portfolio_returns = self.returns.dot(weights)
-        var = -np.percentile(portfolio_returns, self.confidence_level * 100)
-        losses = -portfolio_returns
-        cvar = np.mean(losses[losses >= var])
-        return cvar
+        return _calculate_cvar_fast(portfolio_returns, self.confidence_level)
+
+    def calculate_cvar_batch(self, weights_matrix):
+        """
+        Calculate CVaR for multiple portfolios at once (vectorized).
+
+        Parameters:
+        -----------
+        weights_matrix : array, shape (n_portfolios, n_assets)
+            Matrix of portfolio weights
+
+        Returns:
+        --------
+        cvars : array, shape (n_portfolios,)
+            CVaR values for all portfolios
+        """
+        return _batch_calculate_cvar(
+            self.returns, weights_matrix, self.confidence_level
+        )
 
     def _find_initial_feasible_point(self, target_cvar, max_iter=100):
         """
@@ -136,74 +219,50 @@ class CVaRPortfolioSampler:
         t_min_linear = max([b[0] for b in t_bounds if b[0] != -np.inf], default=-np.inf)
         t_max_linear = min([b[1] for b in t_bounds if b[1] != np.inf], default=np.inf)
 
-        # Binary search for CVaR constraint boundaries
+        # If no linear constraints, return full range
+        if t_min_linear >= t_max_linear:
+            return t_min_linear, t_max_linear
+
+        # For CVaR constraints, use a more efficient approach
+        # Sample fewer points and use larger steps initially
         t_min_cvar = t_min_linear
         t_max_cvar = t_max_linear
 
-        # Find lower bound (going negative)
+        # Use adaptive step size based on the range
+        range_size = (
+            min(t_max_linear - t_min_linear, 2.0) if t_max_linear < np.inf else 2.0
+        )
+        initial_step = max(0.1, range_size / 20)
+
+        # Quick search for CVaR boundaries with fewer evaluations
+        def quick_boundary_search(start_t, step, direction_sign, max_steps=10):
+            t = start_t
+            last_feasible = start_t
+
+            for _ in range(max_steps):
+                t += step * direction_sign
+                if direction_sign > 0 and t > t_max_linear:
+                    break
+                if direction_sign < 0 and t < t_min_linear:
+                    break
+
+                w_test = current_point + t * direction
+                w_test = np.clip(w_test, 0, 1)
+                if np.sum(w_test) > tol:
+                    w_test = w_test / np.sum(w_test)
+                    if self.calculate_cvar(w_test) < target_cvar:
+                        last_feasible = t
+                    else:
+                        break
+                else:
+                    break
+            return last_feasible
+
+        # Search boundaries with fewer CVaR evaluations
         if t_min_linear > -np.inf:
-            t_test = t_min_linear - 0.1
-            step = 0.1
-            while t_test >= t_min_linear - 10:  # Limit search range
-                w_test = current_point + t_test * direction
-                w_test = np.clip(w_test, 0, 1)
-                if np.sum(w_test) > tol:
-                    w_test = w_test / np.sum(w_test)
-                    if self.calculate_cvar(w_test) < target_cvar:
-                        t_min_cvar = t_test
-                        t_test -= step
-                    else:
-                        break
-                else:
-                    break
-
-        # Find upper bound (going positive)
+            t_min_cvar = quick_boundary_search(t_min_linear, initial_step, -1)
         if t_max_linear < np.inf:
-            t_test = t_max_linear + 0.1
-            step = 0.1
-            while t_test <= t_max_linear + 10:  # Limit search range
-                w_test = current_point + t_test * direction
-                w_test = np.clip(w_test, 0, 1)
-                if np.sum(w_test) > tol:
-                    w_test = w_test / np.sum(w_test)
-                    if self.calculate_cvar(w_test) < target_cvar:
-                        t_max_cvar = t_test
-                        t_test += step
-                    else:
-                        break
-                else:
-                    break
-
-        # Refine boundaries with binary search
-        def refine_boundary(t_low, t_high, is_lower=True):
-            for _ in range(20):  # Max iterations
-                t_mid = (t_low + t_high) / 2
-                w_test = current_point + t_mid * direction
-                w_test = np.clip(w_test, 0, 1)
-                if np.sum(w_test) > tol:
-                    w_test = w_test / np.sum(w_test)
-                    cvar_val = self.calculate_cvar(w_test)
-                    if cvar_val < target_cvar:
-                        if is_lower:
-                            t_high = t_mid
-                        else:
-                            t_low = t_mid
-                    else:
-                        if is_lower:
-                            t_low = t_mid
-                        else:
-                            t_high = t_mid
-                else:
-                    if is_lower:
-                        t_low = t_mid
-                    else:
-                        t_high = t_mid
-            return t_high if is_lower else t_low
-
-        if t_min_cvar > t_min_linear:
-            t_min_cvar = refine_boundary(t_min_linear, t_min_cvar, is_lower=True)
-        if t_max_cvar < t_max_linear:
-            t_max_cvar = refine_boundary(t_max_cvar, t_max_linear, is_lower=False)
+            t_max_cvar = quick_boundary_search(t_max_linear, initial_step, 1)
 
         return max(t_min_cvar, t_min_linear), min(t_max_cvar, t_max_linear)
 
@@ -288,3 +347,103 @@ class CVaRPortfolioSampler:
                 samples.append(current_point.copy())
 
         return np.array(samples)
+
+    def generate_portfolios_batch(
+        self,
+        target_cvar,
+        n_samples=1000,
+        burn_in=100,
+        initial_point=None,
+        batch_size=100,
+    ):
+        """
+        Generate portfolios in batches to reduce overhead and enable vectorized CVaR calculation.
+
+        This method generates the exact number of requested portfolios, just like the original method,
+        but uses vectorized CVaR calculations for better performance.
+
+        Parameters:
+        -----------
+        target_cvar : float
+            Maximum allowed CVaR
+        n_samples : int, default=1000
+            Number of portfolios to generate
+        burn_in : int, default=100
+            Number of burn-in iterations
+        initial_point : array-like, optional
+            Starting portfolio (must be feasible). If None, will find one.
+        batch_size : int, default=100
+            Number of portfolios to process in each batch for CVaR calculation
+
+        Returns:
+        --------
+        samples : array, shape (n_samples, n_assets)
+            Generated portfolio weights
+        cvars : array, shape (n_samples,)
+            CVaR values for generated portfolios
+        """
+        n_assets = self.n_assets
+
+        # Find or use initial feasible point
+        if initial_point is None:
+            current_point = self._find_initial_feasible_point(target_cvar)
+        else:
+            current_point = np.asarray(initial_point)
+            if not np.allclose(np.sum(current_point), 1.0):
+                raise ValueError("Initial point must sum to 1")
+            if np.any(current_point < 0):
+                raise ValueError("Initial point must have non-negative weights")
+            if self.calculate_cvar(current_point) >= target_cvar:
+                raise ValueError("Initial point must satisfy CVaR < target_cvar")
+
+        samples = []
+        n_total = burn_in + n_samples
+
+        for i in range(n_total):
+            # Generate random direction on unit sphere
+            direction = np.random.randn(n_assets)
+            direction = direction / np.linalg.norm(direction)
+
+            # Project onto hyperplane sum(w) = 0
+            direction = self._project_direction_onto_simplex(direction)
+            if np.linalg.norm(direction) < 1e-10:
+                continue  # Skip if direction is too small
+            direction = direction / np.linalg.norm(direction)
+
+            # Find feasible line segment
+            t_min, t_max = self._find_feasible_line_segment(
+                current_point, direction, target_cvar
+            )
+
+            if t_max <= t_min:
+                continue  # No feasible segment
+
+            # Sample uniformly along the line segment
+            t = np.random.uniform(t_min, t_max)
+            new_point = current_point + t * direction
+            new_point = np.clip(new_point, 0, 1)
+            new_point = new_point / np.sum(new_point)  # Renormalize
+
+            # Verify feasibility (should always be true, but check for numerical issues)
+            if (
+                np.all(new_point >= 0)
+                and np.allclose(np.sum(new_point), 1.0)
+                and self.calculate_cvar(new_point) < target_cvar
+            ):
+                current_point = new_point
+
+            # Collect sample after burn-in
+            if i >= burn_in:
+                samples.append(current_point.copy())
+
+        # Convert to numpy array
+        samples_array = np.array(samples)
+
+        # Calculate CVaRs in batches for efficiency
+        all_cvars = []
+        for i in range(0, len(samples), batch_size):
+            batch = samples_array[i : i + batch_size]
+            batch_cvars = self.calculate_cvar_batch(batch)
+            all_cvars.extend(batch_cvars)
+
+        return samples_array, np.array(all_cvars)
