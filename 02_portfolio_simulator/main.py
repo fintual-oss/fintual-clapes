@@ -37,6 +37,7 @@ HORIZON_MONTHS = 480  # 40 years
 # Random seeds (for reproducibility)
 RETURNS_SEED = 42  # Seed for simulated returns
 HIT_RUN_SEED = 123  # Seed for Hit-and-Run algorithm
+SCENARIO_SEED = 999  # Seed for scenario selection per month
 
 # Curve selection
 PROCESS_ALL_CURVES = True  # True = process all curves, False = only selected
@@ -68,6 +69,9 @@ def main() -> None:
       1. For each month t, generate N portfolios where CVaR < CVaR_limit(t)
       2. Build trajectory i by connecting portfolio i from each month
       3. Export CVaR and returns matrices to Excel
+
+    MODIFIED: Instead of averaging returns over all scenarios, each month
+    uses a randomly selected scenario (same scenario for all portfolios in that month).
     """
 
     print("=" * 70)
@@ -80,6 +84,7 @@ def main() -> None:
     print(f"Horizon: {HORIZON_MONTHS} months")
     print(f"Returns seed: {RETURNS_SEED}")
     print(f"Hit-and-Run seed: {HIT_RUN_SEED}")
+    print(f"Scenario selection seed: {SCENARIO_SEED}")
     print("=" * 70)
 
     # ----------------------------------------
@@ -130,6 +135,18 @@ def main() -> None:
         print(f"   ✓ Using Gaussian Copula (preserves empirical marginals)")
     else:
         print(f"   ✓ Using Multivariate Normal")
+
+    # ----------------------------------------
+    # 3b. Generate random scenario indices for each month
+    # ----------------------------------------
+    print(f"\n[3b/7] Generating scenario selection for each month...")
+    rng_scenario = np.random.default_rng(SCENARIO_SEED)
+    scenario_indices = rng_scenario.integers(0, N_TRAJ, size=HORIZON_MONTHS)
+    
+    print(f"   Generated {HORIZON_MONTHS} random scenario indices")
+    print(f"   Range: 0 to {N_TRAJ - 1}")
+    print(f"   First 10 indices: {scenario_indices[:10].tolist()}")
+    print(f"   Note: All portfolios in month t use the same scenario index")
 
     # ----------------------------------------
     # 4. Load CVaR glidepath curves
@@ -183,12 +200,11 @@ def main() -> None:
         cvar_matrix = np.zeros((HORIZON_MONTHS, N_PORTFOLIOS_PER_MONTH))
         returns_matrix = np.zeros((HORIZON_MONTHS, N_PORTFOLIOS_PER_MONTH))
 
-        # Process each month (no separate progress bar)
-
+        # Process each month
         for t in range(HORIZON_MONTHS):
 
             # Get simulated returns for this month (shape: N_TRAJ × N_ASSETS)
-            month_returns = samples[t, :, :]  # (10000, 9)
+            month_returns = samples[t, :, :]
 
             # CVaR limit for this month
             target_cvar = cvar_limits[t]
@@ -224,24 +240,35 @@ def main() -> None:
                     cvar_matrix[t, :n_generated] = cvar_vals
                     cvar_matrix[t, n_generated:] = np.nan
 
-                    # Calculate returns for generated portfolios (vectorized)
+                    # Calculate returns for generated portfolios using single scenario
                     if n_generated > 0:
-                        port_returns_matrix = (
-                            month_returns @ portfolios.T
-                        )  # (n_scenarios, n_portfolios)
-                        avg_returns = np.mean(port_returns_matrix, axis=0)
-                        returns_matrix[t, :n_generated] = avg_returns
+                        # Get the scenario index for this month
+                        scenario_idx = scenario_indices[t]
+                        
+                        # Get returns for the selected scenario only
+                        selected_scenario_returns = month_returns[scenario_idx, :]  # (n_assets,)
+                        
+                        # Calculate returns for all generated portfolios using this single scenario
+                        portfolio_returns = portfolios @ selected_scenario_returns  # (n_generated,)
+                        
+                        returns_matrix[t, :n_generated] = portfolio_returns
                         returns_matrix[t, n_generated:] = np.nan
                 else:
                     # Store CVaR values (already calculated in batch)
                     cvar_matrix[t, :] = cvar_vals[:N_PORTFOLIOS_PER_MONTH]
 
-                    # Calculate returns for all portfolios (vectorized)
-                    port_returns_matrix = (
-                        month_returns @ portfolios[:N_PORTFOLIOS_PER_MONTH].T
-                    )  # (n_scenarios, n_portfolios)
-                    avg_returns = np.mean(port_returns_matrix, axis=0)
-                    returns_matrix[t, :] = avg_returns
+                    # Calculate returns for all portfolios using single scenario
+                    # Get the scenario index for this month
+                    scenario_idx = scenario_indices[t]
+                    
+                    # Get returns for the selected scenario only
+                    selected_scenario_returns = month_returns[scenario_idx, :]  # (n_assets,)
+                    
+                    # Calculate returns for all portfolios using this single scenario
+                    portfolio_returns = portfolios[:N_PORTFOLIOS_PER_MONTH] @ selected_scenario_returns
+                    # Shape: (N_PORTFOLIOS_PER_MONTH,)
+                    
+                    returns_matrix[t, :] = portfolio_returns
 
                 # Update progress tracking
                 completed_months += 1
@@ -279,6 +306,10 @@ def main() -> None:
     print("\n" + "=" * 70)
     print("COMPLETED SUCCESSFULLY")
     print("=" * 70)
+    print("\nKEY MODIFICATION:")
+    print("  Each month uses ONE randomly selected scenario (not averaged)")
+    print(f"  All {N_PORTFOLIOS_PER_MONTH} portfolios in month t face the same market condition")
+    print(f"  This ensures comparability across portfolios within each month")
 
 
 if __name__ == "__main__":
