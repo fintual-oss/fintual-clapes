@@ -1,7 +1,7 @@
 # Central place for main configuration values
 
 # Ages (years)
-T_START_YEARS = 35          # starting age
+T_START_YEARS = 25          # starting age
 T_END_YEARS   = 65          # retirement age
 # Transition end age t_B (years). If t_B == 65, the path is flat at retirement.
 T_B_YEAR = 65
