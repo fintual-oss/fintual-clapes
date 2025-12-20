@@ -27,7 +27,7 @@ from exporters import export_analysis_to_excel
 # ========================================
 
 # Target return threshold (annualized)
-TARGET_RETURN_THRESHOLD = 0.04  # 4% annual return
+TARGET_RETURN_THRESHOLD = 0.06  # 4% annual return
 
 # Percentiles to calculate
 PERCENTILES = [10, 25, 50, 75, 90]
