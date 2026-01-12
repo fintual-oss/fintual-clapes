@@ -2,73 +2,75 @@
 
 ## Overview
 
-This module analyzes the performance of portfolio trajectories generated in step 02. It calculates cumulative annualized returns, success rates (percentage of trajectories exceeding target return), and comprehensive statistics for each CVaR glidepath curve.
+This module analyzes the performance of all portfolio trajectories generated in step 02. It calculates how well each glidepath strategy performed by measuring cumulative returns, success rates, and cumulative risk exposure. The output is a single-sheet Excel report that helps identify which glidepath parameters lead to the best investment outcomes.
 
-The output is a single Excel file with all curves ranked by performance, making it easy to identify the best glidepath strategies.
+The module calculates the cumulative risk of each glidepath by summing the CVaR limits from step 01. This represents the total risk exposure (area under the CVaR curve) inherent to each glidepath strategy.
 
 ## What Does This Module Do?
 
-**Input**: Portfolio trajectories (from step 02) + Glidepath parameters (from step 01)  
-**Process**: Calculate performance metrics and statistics for each curve  
-**Output**: Consolidated Excel report with all curves ranked by performance
+**Input:** 
+- Portfolio trajectories from step 02 (monthly returns and CVaR values)
+- Glidepath parameters from step 01 (A, B, t_A, t_B)
+- CVaR limit curves from step 01 (monthly CVaR limits for each glidepath)
 
-## Key Features
+**Process:** 
+- Calculate cumulative annualized returns for each trajectory
+- Calculate success rate (percentage of trajectories exceeding target return)
+- Calculate cumulative risk from CVaR limits (area under the curve)
+- Combine performance metrics with glidepath parameters
+- Rank all curves by performance
 
-- **Cumulative Annualized Returns**: Converts monthly returns to annualized performance
-- **Success Rate Analysis**: % of trajectories exceeding target return threshold
-- **Comprehensive Statistics**: Mean, std dev, min, max for each curve
-- **Percentile Analysis**: Distribution of returns (p10, p25, p50, p75, p90)
-- **Parameter Integration**: Combines results with glidepath parameters (A, B, t_A, etc.)
-- **Ranked Output**: Sorts curves by performance metrics
-- **Clean Excel Export**: Single-sheet, easy-to-analyze format
+**Output:** 
+- Single Excel file with 1 sheet: summary of all curves with statistics and cumulative risk
 
 ## File Structure
 
 ```
 03_trajectory_analyzer/
-├── __init__.py          # Package metadata
-├── main.py              # Main execution script with configuration
-├── routes.py            # Path management
-├── loaders.py           # Load data from steps 01 and 02
-├── metrics.py           # Calculate returns, statistics, percentiles
-└── exporters.py         # Export results to Excel
+├── main.py           # Main execution script (EDIT PARAMETERS HERE)
+├── routes.py         # Path management
+├── loaders.py        # Load data from steps 01 and 02
+├── metrics.py        # Calculate returns, statistics, percentiles
+├── exporters.py      # Export results to Excel (1 sheet)
+├── __init__.py       # Package documentation
+└── README.md         # This file
 ```
 
-## Configuration Parameters (in main.py)
+## Configuration Parameters
 
-All parameters can be edited at the top of `main.py`:
+All parameters are defined at the top of `main.py`. Edit this file to configure the analysis.
 
-### 1. Target Return Threshold
+### Target Return Threshold
+
 ```python
-TARGET_RETURN_THRESHOLD = 0.04  # 4% annual return
+TARGET_RETURN_THRESHOLD = 0.06  # 6% annual return
 ```
 
-**Description**: Minimum acceptable annualized return
-- Trajectories with return > threshold are considered "successful"
-- Used to calculate `pct_above_target` metric
-- Expressed as decimal (0.04 = 4%)
-- Typical values: 0.03-0.06 (3%-6%)
+**What it means:** The minimum acceptable annualized return. This is used to determine if a trajectory is "successful" or not.
 
-### 2. Percentiles
+**How it's used:**
+- Trajectories with annualized return > 6% are considered successful
+- Used to calculate success rate (percentage of successful trajectories)
+
+**Recommended value:** Use the required return from step 00 (target_return) for pension-relevant analysis.
+
+**Format:** Decimal (0.06 = 6% annual return)
+
+### Percentiles
+
 ```python
 PERCENTILES = [10, 25, 50, 75, 90]
 ```
 
-**Description**: Which percentiles to calculate for return distribution
-- Helps understand the full distribution, not just the mean
-- Values should be integers between 0 and 100
+**What it means:** Which percentiles of the return distribution to calculate.
 
-**Common configurations**:
-- **Standard**: `[10, 25, 50, 75, 90]` (quintiles + median)
-- **Detailed**: `[5, 10, 25, 50, 75, 90, 95]`
-- **Simple**: `[25, 50, 75]` (quartiles only)
+**How to modify:**
+- For more detail: `[5, 10, 25, 50, 75, 90, 95]`
+- For less detail: `[25, 50, 75]` (just quartiles)
+- Values must be integers between 0 and 100
 
-**Interpretation**:
-- `p10`: 10% of trajectories perform worse than this
-- `p50`: Median (half perform better, half worse)
-- `p90`: Only top 10% of trajectories exceed this
+### Curve Selection
 
-### 3. Curve Selection
 ```python
 PROCESS_ALL_CURVES = True  # Analyze all available curves
 
@@ -79,195 +81,291 @@ CURVES_TO_ANALYZE = [      # Only used if PROCESS_ALL_CURVES = False
 ]
 ```
 
-**Options**:
-- **PROCESS_ALL_CURVES = True**: Analyze all curves with results from step 02
-- **PROCESS_ALL_CURVES = False**: Only analyze curves listed in CURVES_TO_ANALYZE
-  - Useful for focusing on specific glidepaths
+**What it means:**
 
-## Usage
+**PROCESS_ALL_CURVES = True:**
+- Analyze every curve that has results from step 02
+- Use this for complete analysis
 
-### Basic Usage
+**PROCESS_ALL_CURVES = False:**
+- Analyze only the curves listed in CURVES_TO_ANALYZE
+- Use this for quick checks or specific curve analysis
+
+## How to Run
 
 ```bash
-cd 03_trajectory_analyzer
+python -m 03_trajectory_analyzer.main
+```
+
+Or, if you are inside the `03_trajectory_analyzer/` directory:
+
+```bash
 python main.py
 ```
 
 ### Prerequisites
 
-**Required files**:
-1. `outputs/glidepaths_universe.xlsx` - From step 01 (glidepath parameters)
-2. `outputs/hit_run_results/curve_XXXX_results.xlsx` - From step 02 (trajectory returns)
+Before running, ensure these files exist:
 
-### Output
+1. `outputs/glidepaths_universe.xlsx` (from step 01)
+2. `outputs/hit_run_results/curve_XXXX_results.xlsx` (from step 02)
 
-**File**: `outputs/trajectory_analysis_summary.xlsx`
+## Output File
 
-**Sheet**: "results"
+**Location:** `outputs/trajectory_analysis_summary.xlsx`
 
-**Structure**: One row per curve, sorted by performance
+**Structure:** 1 sheet
 
-**Columns**:
+### Sheet: "results" - Summary of All Curves
 
-| Column | Description | Example |
-|--------|-------------|---------|
-| `curve_id` | Curve identifier | curve_0001 |
-| `t_start` | Starting age (years) | 25 |
-| `t_A` | Transition start age (years) | 45 |
-| `A` | Initial CVaR limit (young) | 0.08 |
-| `B` | Final CVaR limit (retirement) | 0.05 |
-| `t_B` | Transition end age (years) | 65 |
-| `t_end` | Retirement age (years) | 65 |
-| `n_trajectories` | Number of trajectories analyzed | 100 |
-| `horizon_months` | Investment horizon (months) | 480 |
-| `return_mean` | Mean annualized return | 0.0523 |
-| `return_std` | Standard deviation | 0.0087 |
-| `return_min` | Worst trajectory | 0.0312 |
-| `return_max` | Best trajectory | 0.0701 |
-| `pct_above_target` | % trajectories > target | 0.87 |
-| `return_p10` | 10th percentile | 0.0401 |
-| `return_p25` | 25th percentile | 0.0456 |
-| `return_p50` | 50th percentile (median) | 0.0519 |
-| `return_p75` | 75th percentile | 0.0589 |
-| `return_p90` | 90th percentile | 0.0643 |
+This sheet has one row per curve, sorted by performance. It combines glidepath parameters with performance metrics and cumulative risk.
 
-**Sorting**: Rows are sorted by:
+**Columns:**
+
+**Glidepath Parameters:**
+- `curve_id`: Curve identifier (e.g., curve_0001)
+- `t_start`: Starting age in years (e.g., 25)
+- `t_A`: Transition start age in years (e.g., 45)
+- `A`: Initial CVaR limit when young (e.g., 0.08)
+- `B`: Final CVaR limit at retirement (e.g., 0.03)
+- `t_B`: Transition end age in years (e.g., 65)
+- `t_end`: Retirement age in years (e.g., 65)
+
+**Data Summary:**
+- `n_trajectories`: Number of trajectories analyzed (e.g., 1000)
+- `horizon_months`: Investment horizon in months (e.g., 480)
+
+**Risk Metric:**
+- `cumulative_risk`: Total risk exposure (area under CVaR curve from step 01) (e.g., 28.45)
+
+**Performance Metrics:**
+- `return_mean`: Average annualized return across all trajectories (e.g., 0.0523 = 5.23%)
+- `return_std`: Standard deviation of returns (e.g., 0.0087 = 0.87%)
+- `return_min`: Worst trajectory return (e.g., 0.0312 = 3.12%)
+- `return_max`: Best trajectory return (e.g., 0.0701 = 7.01%)
+- `pct_above_target`: Percentage of trajectories exceeding target (e.g., 0.87 = 87%)
+
+**Return Distribution:**
+- `return_p10`: 10th percentile return (e.g., 0.0401 = 4.01%)
+- `return_p25`: 25th percentile return (e.g., 0.0456 = 4.56%)
+- `return_p50`: 50th percentile return / median (e.g., 0.0519 = 5.19%)
+- `return_p75`: 75th percentile return (e.g., 0.0589 = 5.89%)
+- `return_p90`: 90th percentile return (e.g., 0.0643 = 6.43%)
+
+**Example:**
+```
+curve_id  t_A   A      B      cumulative_risk  return_mean  pct_above_target  return_p50
+curve_0042  45  0.08  0.03      28.45           0.0523         0.87            0.0519
+curve_0015  46  0.09  0.03      30.12           0.0498         0.82            0.0495
+curve_0089  44  0.07  0.03      26.78           0.0545         0.91            0.0542
+```
+
+**Sorting:** Rows are sorted by:
 1. `pct_above_target` (descending) - curves with more successful trajectories first
-2. `return_mean` (descending) - higher average returns first
+2. `return_mean` (descending) - higher average returns second
+
+**Interpretation:**
+- The first row shows the best performing glidepath based on success rate
+- Compare `A` and `t_A` values across top rows to identify optimal parameters
+- Look at `pct_above_target` to see reliability of each strategy
+- Look at `cumulative_risk` to understand total risk exposure of each glidepath
+- Look at percentiles to understand risk/reward distribution
 
 ## How It Works
 
 ### Step-by-Step Process
 
-**1. Load Glidepath Parameters**
-- Reads `glidepaths_universe.xlsx` from step 01
-- Extracts parameters (A, B, t_A, t_B) for each curve
+**Step 1: Load Glidepath Parameters**
+- Read `glidepaths_universe.xlsx` from step 01
+- Extract parameters (t_start, t_A, A, B, t_B, t_end) for all curves
 
-**2. Find Available Curves**
-- Scans `hit_run_results/` directory
-- Identifies which curves have trajectory results from step 02
+**Step 2: Load CVaR Limit Curves**
+- Read `glidepaths_universe.xlsx` from step 01
+- Extract monthly CVaR limits (Month_1 through Month_480) for all curves
+- These are the CVaR constraints that each glidepath imposes
 
-**3. Analyze Each Curve**
+**Step 3: Find Available Curves**
+- Scan the `hit_run_results/` directory
+- Identify which curves have trajectory results from step 02
+- Only curves with results will be analyzed
+
+**Step 4: Analyze Each Curve**
 
 For each curve with results:
 
-#### a. Load Trajectory Data
-```python
-# Load returns matrix: (HORIZON_MONTHS × N_PORTFOLIOS)
-returns_df = load_trajectory_results(curve_name)
-# Example shape: (480, 100) = 480 months × 100 trajectories
+**a. Load Trajectory Data**
+```
+Load two matrices from curve_XXXX_results.xlsx:
+- Files are stored as (N_TRAJECTORIES × MONTHS) - rows=trajectories, columns=months
+- After loading, data is TRANSPOSED to (MONTHS × N_TRAJECTORIES) for calculations
+- returns_df: monthly returns (480 rows × 1000 columns after transpose)
+- cvar_df: monthly CVaR (480 rows × 1000 columns after transpose)
+
+After transpose:
+- Each column is one trajectory
+- Each row is one month
 ```
 
-#### b. Calculate Cumulative Annualized Returns
-For each trajectory (column):
-```python
-# Step 1: Cumulative return (compound monthly returns)
-cumulative_return = ∏(1 + r_monthly) - 1
+**b. Calculate Cumulative Annualized Returns**
 
-# Step 2: Annualize (convert to yearly rate)
-T = number of months
-annualized_return = (1 + cumulative_return)^(12/T) - 1
+For each trajectory (each column of returns_df):
+
+1. Calculate cumulative return by compounding monthly returns:
+   ```
+   cumulative_return = ∏(1 + r_monthly) - 1
+   ```
+   Example: If monthly returns are [0.01, 0.02, -0.01], then:
+   ```
+   cumulative = (1.01)(1.02)(0.99) - 1 = 0.0198
+   ```
+
+2. Annualize the cumulative return:
+   ```
+   annualized_return = (1 + cumulative_return)^(12/T) - 1
+   ```
+   where T is the number of months
+
+   Example: If cumulative return over 480 months is 1.50 (150%), then:
+   ```
+   annualized = (1 + 1.50)^(12/480) - 1 = (2.50)^0.025 - 1 = 0.0238 = 2.38% per year
+   ```
+
+This produces one annualized return value per trajectory.
+
+**c. Calculate Summary Statistics**
+
+Using the annualized returns:
+```
+return_mean = average of all annualized returns
+return_std = standard deviation of annualized returns
+return_min = minimum annualized return
+return_max = maximum annualized return
+pct_above_target = (count of returns > TARGET_RETURN_THRESHOLD) / total count
 ```
 
-**Example**:
-- Monthly returns: [0.01, 0.02, -0.005, 0.015, ...]
-- After 480 months: cumulative = 1.85 (185% total gain)
-- Annualized: (1 + 1.85)^(12/480) - 1 = 0.0523 = 5.23% per year
+**d. Calculate Percentiles**
 
-#### c. Calculate Statistics
-```python
-return_mean = mean(annualized_returns)        # Average
-return_std = std(annualized_returns)          # Volatility
-return_min = min(annualized_returns)          # Worst case
-return_max = max(annualized_returns)          # Best case
-pct_above_target = % returns > TARGET_RETURN  # Success rate
+Sort the annualized returns and find values at specified percentiles.
+
+Example with 1000 trajectories and percentile 10:
+```
+Sort returns: [0.02, 0.025, 0.028, ..., 0.065, 0.070]
+p10 = value at position 100 (10% of 1000)
 ```
 
-#### d. Calculate Percentiles
-```python
-return_p10 = 10th percentile of annualized_returns
-return_p25 = 25th percentile
-return_p50 = 50th percentile (median)
-return_p75 = 75th percentile
-return_p90 = 90th percentile
+**e. Calculate Cumulative Risk from Step 01**
+
+For this curve, get the CVaR limits from step 01:
+```
+cvar_limits = [Month_1, Month_2, ..., Month_480]
+cumulative_risk = sum(cvar_limits)
 ```
 
-#### e. Combine with Parameters
-Merge performance metrics with curve parameters (A, B, t_A, etc.)
+Example: If CVaR limits are [0.08, 0.08, 0.08, ..., 0.03], then:
+```
+cumulative_risk = 0.08 + 0.08 + 0.08 + ... + 0.03 = 28.45
+```
 
-**4. Export Results**
-- Consolidate all curves into single DataFrame
-- Sort by performance (pct_above_target, then return_mean)
-- Export to Excel
+**Important:** This is calculated from the glidepath definition (step 01), NOT from the realized CVaR values of trajectories (step 02). It represents the inherent risk profile of the glidepath strategy itself.
+
+**f. Combine with Parameters**
+
+Merge the performance metrics with the glidepath parameters (A, B, t_A, etc.) and cumulative risk for this curve.
+
+**Step 5: Create Summary DataFrame**
+
+Combine results from all curves into a single DataFrame with all columns:
+- Glidepath parameters (t_start, t_A, A, B, t_B, t_end)
+- Data summary (n_trajectories, horizon_months)
+- Cumulative risk (from step 01)
+- Performance metrics (return_mean, return_std, return_min, return_max, pct_above_target)
+- Return percentiles (return_p10, return_p25, return_p50, return_p75, return_p90)
+
+**Step 6: Sort Results**
+
+Sort the DataFrame by:
+1. `pct_above_target` (descending) - most successful curves first
+2. `return_mean` (descending) - highest average return as tiebreaker
+
+**Step 7: Export to Excel**
+
+Write 1 sheet to Excel file:
+- Sheet: 'results' - Summary of all curves with statistics and cumulative risk
 
 ## Metrics Explained
 
-### 1. Cumulative Annualized Return
+### Cumulative Annualized Return
 
-**Purpose**: Compare trajectories of different lengths on equal footing
+**Purpose:** Convert a multi-year investment into a single comparable number.
 
-**Formula**:
+**Why annualize?**
+- Different horizons are hard to compare directly
+- A 40-year return of 150% is different from a 20-year return of 150%
+- Annualizing puts everything on "per year" basis
+
+**Formula:**
 ```
-Cumulative = ∏(1 + r_monthly) - 1
-Annualized = (1 + cumulative)^(12/T) - 1
-```
-
-**Example**:
-- Investment period: 40 years (480 months)
-- Total gain: 285% (cumulative return = 2.85)
-- Annualized: (1 + 2.85)^(12/480) - 1 = 0.0533 = 5.33% per year
-
-### 2. Success Rate (pct_above_target)
-
-**Purpose**: Measure probability of meeting investment goal
-
-**Formula**:
-```
-pct_above_target = (# trajectories with return > TARGET_RETURN) / (total trajectories)
+Step 1: Cumulative return = ∏(1 + r_t) - 1
+Step 2: Annualized return = (1 + cumulative)^(12/T) - 1
 ```
 
-**Interpretation**:
-- `0.87` = 87% of trajectories exceeded target return
+**Example:**
+- Monthly returns for 480 months compound to cumulative return of 2.50 (250%)
+- Annualized: (1 + 2.50)^(12/480) - 1 = (3.50)^0.025 - 1 = 0.0326 = 3.26% per year
+
+### Success Rate (pct_above_target)
+
+**Purpose:** Measure the probability of achieving your investment goal.
+
+**Formula:**
+```
+pct_above_target = (number of trajectories with return > target) / total trajectories
+```
+
+**Interpretation:**
+- 0.87 = 87% of trajectories exceeded the target
 - Higher is better (more reliable strategy)
-- Helps identify robust glidepaths
+- Compare across curves to find most reliable glidepaths
 
-**Example**:
-- Target return: 4%
-- 100 trajectories analyzed
-- 87 trajectories have annualized return > 4%
-- Success rate = 0.87 = 87%
+**Example:**
+- Target return: 6%
+- 1000 trajectories tested
+- 870 trajectories achieved > 6%
+- Success rate: 870/1000 = 0.87 = 87%
 
-### 3. Return Statistics
+**Connection to Step 00:**
+If you use the required return from step 00 as TARGET_RETURN_THRESHOLD, then:
+- pct_above_target = probability of achieving adequate retirement income
+- A curve with 87% success rate means 87% chance of meeting pension goals
 
-**return_mean**: Average performance across all trajectories
-- Central tendency of the strategy
-- Higher is generally better
+### Cumulative Risk (Area Under CVaR Curve)
 
-**return_std**: Standard deviation of returns
-- Measures consistency/volatility
-- Lower = more predictable outcomes
+**Purpose:** Measure the total risk exposure inherent to each glidepath strategy.
 
-**return_min / return_max**: Range of outcomes
-- Shows best and worst case scenarios
-- Helps assess risk
+**Formula:**
+```
+cumulative_risk = Σ CVaR_limit_t  for t = 1 to T
+```
 
-### 4. Percentiles
+This is the sum of all monthly CVaR limits from step 01, also called "area under the CVaR curve."
 
-**Purpose**: Understand the full distribution, not just the average
 
-**Interpretation**:
+### Return Percentiles
 
-| Percentile | Meaning | Use Case |
-|------------|---------|----------|
-| `p10` | 10% of trajectories are worse | Pessimistic scenario |
-| `p25` | Lower quartile | Below-average outcome |
-| `p50` | Median (half better, half worse) | Typical outcome |
-| `p75` | Upper quartile | Above-average outcome |
-| `p90` | Only top 10% exceed this | Optimistic scenario |
+**Purpose:** Understand the distribution of outcomes beyond just the mean.
 
-**Example**:
-- `p10 = 0.0401` → In 90% of cases, return exceeds 4.01%
-- `p50 = 0.0519` → Typical outcome is 5.19%
-- `p90 = 0.0643` → Best 10% exceed 6.43%
+**Interpretation:**
+- `return_p10`: Only 10% of trajectories did worse than this
+- `return_p25`: First quartile (25% did worse)
+- `return_p50`: Median return (half did better, half did worse)
+- `return_p75`: Third quartile (75% did worse, 25% did better)
+- `return_p90`: Only 10% of trajectories did better than this
 
----
+## Next Steps
+
+After running this analysis:
+
+1. **Identify top performing glidepaths** based on success rate and risk
+2. **Examine the parameters** of top curves to find patterns
+3. **Use insights to refine** glidepath parameter ranges in step 01 if needed
+4. **Consider the trade-offs** between success rate and risk exposure

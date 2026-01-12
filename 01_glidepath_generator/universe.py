@@ -9,7 +9,7 @@ def build_universe_single_sheet(t_start_y: int = T_START_YEARS, t_B_year: int | 
     """
     Build a DataFrame with all CVaR glidepaths.
     Rows:
-      [t_start, t_A, A, B, t_B, t_end] + 360 monthly values (Month_1..Month_360)
+      [t_start, t_A, A, B, t_B, t_end] + 480 monthly values (Month_1..Month_480)
     Notes:
       - t_start, t_A, t_B, t_end are expressed in years.
       - Monthly values are computed internally using months.

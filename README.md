@@ -1,248 +1,217 @@
 # fintual-clapes: CVaR Glidepath Analysis System
 
-A comprehensive Python-based system for generating, simulating, and analyzing CVaR-constrained portfolio glidepaths for retirement planning. This repository implements a three-stage pipeline that generates thousands of feasible portfolio trajectories and identifies optimal risk management strategies.
+A comprehensive Python-based system for analyzing optimal retirement investment strategies using CVaR-constrained portfolio glidepaths.
 
 ## What Does This System Do?
 
-This system helps answer the question: **"What's the optimal way to adjust portfolio risk as someone approaches retirement?"**
+This system answers two key questions:
 
-It does this by:
-1. **Generating** thousands of different risk reduction paths (glidepaths)
-2. **Simulating** portfolio trajectories that comply with each path's risk constraints
-3. **Analyzing** which paths lead to the best outcomes
+1. **"What investment return do I need to achieve adequate retirement income?"**
+2. **"What's the optimal way to adjust portfolio risk as I approach retirement?"**
+
+The system combines pension planning analysis with portfolio optimization to provide data-driven retirement strategies.
 
 ## System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                     FINTUAL-CLAPES SYSTEM                        │
-│                                                                  │
-│  Input: Historical asset returns (returns.csv)                   │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────┐      │
-│  │  Step 01: Glidepath Generator                          │      │
-│  │  - Generates universe of CVaR glidepath curves         │      │
-│  │  - Output: glidepaths_universe.xlsx                    │      │
-│  └────────────────────────────────────────────────────────┘      │
-│                            ↓                                     │
-│  ┌────────────────────────────────────────────────────────┐      │
-│  │  Step 02: Portfolio Simulator                          │      │
-│  │  - Simulates feasible portfolio trajectories           │      │
-│  │  - Uses Hit-and-Run algorithm                          │      │
-│  │  - Output: curve_XXXX_results.xlsx (per curve)         │      │
-│  └────────────────────────────────────────────────────────┘      │
-│                            ↓                                     │
-│  ┌────────────────────────────────────────────────────────┐      │
-│  │  Step 03: Trajectory Analyzer                          │      │
-│  │  - Analyzes performance of all trajectories            │      │
-│  │  - Ranks glidepaths by success rate                    │      │
-│  │  - Output: trajectory_analysis_summary.xlsx            │      │
-│  └────────────────────────────────────────────────────────┘      │
-│                                                                  │
-│  Final Output: Optimal glidepath recommendations                 │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        FINTUAL-CLAPES SYSTEM                         │
+│                                                                      │
+│  Input: Historical asset returns (returns.csv)                       │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────┐      │
+│  │  Step 00: Target Return Calculator                         │      │
+│  │  - Calculates required returns for pension adequacy        │      │
+│  │  - Models Chilean pension system (AFP)                     │      │
+│  │  - Output: target_return.xlsx                              │      │
+│  │  Purpose: Provides calibration benchmark for Step 03       │      │
+│  └────────────────────────────────────────────────────────────┘      │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────┐      │
+│  │  Step 01: Glidepath Generator                              │      │
+│  │  - Generates universe of CVaR glidepath curves             │      │
+│  │  - Defines risk limits over investor's lifetime            │      │
+│  │  - Output: glidepaths_universe.xlsx                        │      │
+│  └────────────────────────────────────────────────────────────┘      │
+│                            ↓                                         │
+│  ┌────────────────────────────────────────────────────────────┐      │
+│  │  Step 02: Portfolio Simulator                              │      │
+│  │  - Simulates portfolio trajectories for each glidepath     │      │
+│  │  - Uses Hit-and-Run algorithm for CVaR constraints         │      │
+│  │  - Output: curve_XXXX_results.xlsx (per curve)             │      │
+│  └────────────────────────────────────────────────────────────┘      │
+│                            ↓                                         │
+│  ┌────────────────────────────────────────────────────────────┐      │
+│  │  Step 02_test: Portfolio Diversity Analyzer (OPTIONAL)     │      │ 
+│  │  - Analyzes portfolio composition and diversification      │      │
+│  │  - Examines asset allocation patterns                      │      │
+│  │  - Output: curve_XXXX_diversity.xlsx (per curve)           │      │
+│  └────────────────────────────────────────────────────────────┘      │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────┐      │
+│  │  Step 03: Trajectory Analyzer                              │      │
+│  │  - Analyzes performance of all trajectories                │      │
+│  │  - Ranks glidepaths by success rate                        │      │
+│  │  - Calculates cumulative risk from CVaR limits             │      │
+│  │  - Identifies best strategies                              │      │
+│  │  - Output: trajectory_analysis_summary.xlsx                │      │
+│  └────────────────────────────────────────────────────────────┘      │
+│                                                                      │
+│  Final Output: Optimal glidepath recommendations + supporting data   │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-## Run the Pipeline
+## Module Overview
 
-```bash
-# Step 1: Generate CVaR glidepath universe
-python -m 01_glidepath_generator.main
+### 00_target_return - Chilean Pension System Required Return Calculator
 
-# Step 2: Simulate portfolio trajectories
-python -m 02_portfolio_simulator.main
+**Purpose:** Calculate the investment return needed to achieve adequate retirement income in the Chilean pension system.
 
-# Step 3: Analyze and rank trajectories
-python -m 03_trajectory_analyzer.main
-```
+**What it does:**
+- Models the complete AFP pension lifecycle (contributions + returns + pension payout)
+- Simulates 4 demographic profiles (male/female, with/without contribution gaps)
+- Finds the required annual return to achieve 60% replacement rate
+- Provides benchmark values for calibrating Step 03
 
-Each step produces output files in the `outputs/` directory.
+**When to use:** Before running Step 03, to determine realistic return thresholds based on pension adequacy.
 
-## Configuration Guide
+**Key output:** Required returns for different profiles (e.g., "Male without gaps needs 5.8% annual return")
 
-### Step 01: Glidepath Generator
+**Connection to other steps:** The required returns from this module are used as TARGET_RETURN_THRESHOLD in Step 03.
 
-**Edit**: `01_glidepath_generator/config.py`
+---
 
-**Key Parameters**:
-```python
-# Age range
-T_START_YEARS = 25          # Starting age
-T_END_YEARS   = 65          # Retirement age
+### 01_glidepath_generator - CVaR Glidepath Universe Generator
 
-# Transition ages
-T_A_YEARS_VALUES = list(range(40, 51))  # When transition starts
+**Purpose:** Generate all possible CVaR glidepath strategies to test.
 
-# CVaR limits
-A_MIN, A_MAX, A_STEP = 0.06, 0.10, 0.01  # Young age (6%-10%)
-B_MIN, B_MAX, B_STEP = 0.05, 0.05, 0.01  # Retirement (5%)
-```
+**What it does:**
+- Creates thousands of different "risk reduction rules" (glidepaths)
+- Each glidepath defines maximum allowed risk (CVaR) at each age
+- Starts with higher risk when young, transitions to lower risk at retirement
+- Comprehensive grid search over parameters (A, B, t_A)
 
-### Step 02: Portfolio Simulator
+**When to use:** First step of the main analysis pipeline.
 
-**Edit**: `02_portfolio_simulator/main.py`
+**Key output:** Excel file with all glidepath curves (each column = one strategy)
 
-**Key Parameters**:
-```python
-# Simulation method
-SIMULATION_METHOD = "copula"  # "copula" (recommended) or "mvn"
+---
 
-# CVaR confidence level
-ALPHA_CVAR = 0.90  # 90% = worst 10% tail
+### 02_portfolio_simulator - Portfolio Trajectory Generator with Hit-and-Run
 
-# Portfolio generation
-N_PORTFOLIOS_PER_MONTH = 100  # Trajectories per curve
-N_TRAJ = 1_000                # Monte Carlo scenarios
-HORIZON_MONTHS = 480          # Must match step 01
+**Purpose:** Generate actual portfolio trajectories that comply with each glidepath's risk constraints.
 
-# Random seeds
-RETURNS_SEED = 42
-HIT_RUN_SEED = 123
-SCENARIO_SEED = 999
+**What it does:**
+- For each glidepath from Step 01, creates many portfolio paths
+- Uses Hit-and-Run algorithm to efficiently sample CVaR-constrained portfolios
+- Simulates realistic market conditions using historical returns (MVN or Copula method)
+- Each month uses single scenario for fair comparison across portfolios
+- Saves monthly returns and CVaR values for each trajectory
 
-# Curve selection
-PROCESS_ALL_CURVES = True  # Process all or subset
-```
+**When to use:** After Step 01, to generate the portfolio data for analysis.
 
-**Important**: `HORIZON_MONTHS` must match the months in step 01:
-```python
-HORIZON_MONTHS = (T_END_YEARS - T_START_YEARS) * 12
-```
+**Key output:** Excel files per curve with monthly returns and CVaR for each trajectory
 
-### Step 03: Trajectory Analyzer
+**Note:** Portfolio weights (asset allocations) are NOT saved here - see Step 02_test if you need them.
 
-**Edit**: `03_trajectory_analyzer/main.py`
+---
 
-**Key Parameters**:
-```python
-# Target return threshold
-TARGET_RETURN_THRESHOLD = 0.04  # 4% annual return
+### 02_test - Portfolio Diversity Analyzer (OPTIONAL)
 
-# Percentiles to calculate
-PERCENTILES = [10, 25, 50, 75, 90]
+**Purpose:** Analyze the diversity and composition of portfolios generated in Step 02.
 
-# Curve selection
-PROCESS_ALL_CURVES = True
-```
+**What it does:**
+- Re-generates portfolios using same seeds as Step 02
+- Extracts portfolio weights (not saved in Step 02)
+- Calculates diversity metrics: mean weights, standard deviation, HHI, Euclidean distance
+- Provides snapshots at key life stages (ages 25, 45, 65)
 
+**When to use:** After Step 02, when you want to understand portfolio composition (not just returns).
 
-## Output Files
+**Key output:** Excel files with diversity analysis per curve (8 sheets per file)
 
-### 01_glidepath_generator
+---
 
-**File**: `outputs/glidepaths_universe.xlsx`
+### 03_trajectory_analyzer - Portfolio Trajectory Performance Analysis
 
-**Contains**: All CVaR glidepath curves
-- Rows: Parameters + Monthly CVaR limits
-- Columns: curve_0001, curve_0002, etc.
+**Purpose:** Analyze which glidepath strategies lead to the best retirement outcomes.
 
-### 02_portfolio_simulator
+**What it does:**
+- Calculates cumulative annualized returns for all trajectories
+- Identifies success rate (% of trajectories exceeding target return)
+- Calculates cumulative risk (area under CVaR curve from Step 01)
+- Ranks all glidepaths by performance
+- Combines results with glidepath parameters for interpretation
 
-**Directory**: `outputs/hit_run_results/`
+**When to use:** After Step 02, to identify optimal strategies.
 
-**Files**: `curve_XXXX_results.xlsx` (one per curve)
+**Key output:** Single Excel file with 1 sheet ranking all curves by success rate and showing cumulative risk
 
-**Each file has 2 sheets**:
-- **cvar**: Monthly CVaR values for each trajectory
-- **returns**: Monthly returns for each trajectory (single scenario per month)
+**Connection to Step 00:** Use TARGET_RETURN_THRESHOLD from Step 00 to define "success"
 
-### 03_trajectory_analyzer
+**Connection to Step 01:** Uses CVaR limits from glidepaths to calculate total risk exposure
 
-**File**: `outputs/trajectory_analysis_summary.xlsx`
-
-**Contains**: Performance analysis and ranking
-- One row per curve
-- Sorted by success rate and mean return
-- Columns: parameters, performance metrics, percentiles
-
-## Key Features
-
-### Step 01: Glidepath Generator
-- ✅ Comprehensive grid search over parameter space
-- ✅ Automatic validation (A ≥ B, t_A < t_B)
-- ✅ Piecewise linear CVaR paths
-
-### Step 02: Portfolio Simulator
-- ✅ **Hit-and-Run algorithm** for CVaR-constrained portfolios
-- ✅ **Single scenario per month** (not averaged) for fair comparison
-- ✅ **Two simulation methods**: MVN (fast) or Copula (realistic)
-- ✅ Fully reproducible with random seeds
-
-### Step 03: Trajectory Analyzer
-- ✅ Cumulative annualized returns
-- ✅ Success rate analysis (% above target)
-- ✅ Complete distribution via percentiles
-- ✅ Automated ranking of strategies
-
-## Important Notes
-
-### Horizon Consistency
-
-If you change the horizon in step 01:
-```python
-# 01_glidepath_generator/config.py
-T_START_YEARS = 30  # Changed from 25
-T_END_YEARS   = 65
-# This creates 420 months (35 years)
-```
-
-You **must** update step 02:
-```python
-# 02_portfolio_simulator/main.py
-HORIZON_MONTHS = 420  # Must match!
-```
-
-### Random Seeds
-
-All three seeds in step 02 control different randomness:
-- `RETURNS_SEED`: Asset return simulation
-- `HIT_RUN_SEED`: Portfolio generation
-- `SCENARIO_SEED`: **Which scenario is used each month**
-
-Same seeds = identical results (reproducibility)
-
-### Simulation Method
-
-**Copula (Recommended)**:
-- Preserves empirical distributions from historical data
-- Better tail behavior
-- More realistic for financial returns
-- Slower
-
-**MVN (Alternative)**:
-- Assumes Gaussian returns
-- Faster computation
-- Good for testing
-
-## 📖 Detailed Documentation
-
-Each module has comprehensive documentation:
-
-- [**01_glidepath_generator/README.md**](01_glidepath_generator/README.md): Full parameter guide, examples, formulas
-- [**02_portfolio_simulator/README.md**](02_portfolio_simulator/README.md): Algorithm details, simulation methods, configuration
-- [**03_trajectory_analyzer/README.md**](03_trajectory_analyzer/README.md): Metrics explanation, interpretation guide
+---
 
 ## Repository Structure
 
 ```
 fintual-clapes/
-├── returns.csv                      # Historical asset returns (required)
+├── README.md                        # This file
+├── returns.csv                      # Historical asset returns (REQUIRED)
+│
 ├── outputs/                         # All output files
-│   ├── glidepaths_universe.xlsx
-│   ├── hit_run_results/
+│   ├── target_return.xlsx           # From Step 00
+│   ├── glidepaths_universe.xlsx     # From Step 01
+│   ├── hit_run_results/             # From Step 02
 │   │   ├── curve_0001_results.xlsx
 │   │   └── ...
-│   └── trajectory_analysis_summary.xlsx
-├── 01_glidepath_generator/
+│   ├── portfolio_diversity/         # From Step 02_test (optional)
+│   │   ├── curve_0001_diversity.xlsx
+│   │   └── ...
+│   └── trajectory_analysis_summary.xlsx  # From Step 03
+│
+├── 00_target_return/                # Pension system analysis
+│   ├── parameters.py                # ← Edit parameters here
+│   ├── main.py
+│   ├── formulas.py
+│   ├── exporters.py
+│   └── README.md
+│
+├── 01_glidepath_generator/          # Glidepath generation
 │   ├── config.py                    # ← Edit parameters here
 │   ├── main.py
-│   └── ...
-├── 02_portfolio_simulator/
+│   ├── cvar_piecewise.py
+│   ├── param_grid.py
+│   ├── universe.py
+│   ├── utils.py
+│   └── README.md
+│
+├── 02_portfolio_simulator/          # Portfolio simulation
 │   ├── main.py                      # ← Edit parameters here
-│   └── ...
-└── 03_trajectory_analyzer/
+│   ├── simulate_asset_returns.py
+│   ├── cvar_portfolio_sampler.py
+│   ├── exporters.py
+│   ├── loaders.py
+│   ├── make_psd.py
+│   ├── routes.py
+│   └── README.md
+│
+├── 02_test/                         # Portfolio diversity (OPTIONAL)
+│   ├── test_config.py               # ← Edit parameters here
+│   ├── main.py
+│   ├── test_portfolio_generator.py
+│   ├── test_diversity_metrics.py
+│   ├── test_exporters.py
+│   ├── test_routes.py
+│   └── README.md
+│
+└── 03_trajectory_analyzer/          # Performance analysis
     ├── main.py                      # ← Edit parameters here
-    └── ...
+    ├── loaders.py
+    ├── metrics.py
+    ├── exporters.py
+    ├── routes.py
+    └── README.md
 ```
-
 ---

@@ -35,6 +35,47 @@ def load_glidepaths_parameters(glides_file: str) -> pd.DataFrame:
     return params_df
 
 
+def load_glidepaths_cvar_limits(glides_file: str) -> pd.DataFrame:
+    """
+    Load CVaR limit curves from step 01 output.
+    
+    Parameters:
+    -----------
+    glides_file : str
+        Path to glidepaths_universe.xlsx
+    
+    Returns:
+    --------
+    cvar_limits_df : pd.DataFrame
+        DataFrame with monthly CVaR limits (rows=months, columns=curves)
+        Shape: (HORIZON_MONTHS x N_CURVES)
+    """
+    # Load full Excel file
+    full_df = pd.read_excel(glides_file, header=0, index_col=0)
+    
+    # Parameter rows to exclude
+    param_rows = ["t_start", "t_A", "A", "B", "t_B", "t_end"]
+    
+    # Extract monthly CVaR limits (rows starting with "Month_")
+    idx_str = full_df.index.astype(str)
+    monthly_mask = idx_str.str.startswith("Month_")
+    cvar_limits_df = full_df.loc[monthly_mask, :].copy()
+    
+    # If no Month_ rows found, take all non-parameter rows
+    if cvar_limits_df.empty:
+        cvar_limits_df = full_df.loc[~idx_str.isin(param_rows), :].copy()
+    
+    # Reindex months as 1..T
+    T = cvar_limits_df.shape[0]
+    cvar_limits_df.index = range(1, T + 1)
+    cvar_limits_df.index.name = "Month"
+    
+    # Ensure numeric values
+    cvar_limits_df = cvar_limits_df.apply(pd.to_numeric, errors="coerce")
+    
+    return cvar_limits_df
+
+
 def get_available_curves(hit_run_dir: str) -> List[str]:
     """
     Get list of curves that have results available in hit_run_results.
@@ -74,6 +115,12 @@ def load_trajectory_results(
     """
     Load trajectory results (returns and CVaR) for a specific curve.
     
+    IMPORTANT: Files are stored as (N_TRAJECTORIES × MONTHS) but are
+    TRANSPOSED after loading to (MONTHS × N_TRAJECTORIES) for calculations.
+    
+    This maintains backward compatibility with all existing analysis code
+    while supporting the new storage format that allows millions of trajectories.
+    
     Parameters:
     -----------
     hit_run_dir : str
@@ -85,8 +132,10 @@ def load_trajectory_results(
     --------
     returns_df : pd.DataFrame
         Monthly returns (rows=months, columns=trajectories)
+        Shape: (MONTHS, N_TRAJECTORIES)
     cvar_df : pd.DataFrame
         Monthly CVaR (rows=months, columns=trajectories)
+        Shape: (MONTHS, N_TRAJECTORIES)
     metadata : Dict
         Dictionary with metadata (simulation_method, n_scenarios, etc.)
     """
@@ -95,10 +144,10 @@ def load_trajectory_results(
     if not file_path.exists():
         raise FileNotFoundError(f"Results file not found: {file_path}")
     
-    # Load returns sheet
+    # Load returns sheet (stored as: rows=trajectories, columns=months)
     returns_df = pd.read_excel(file_path, sheet_name="returns", index_col=0)
     
-    # Load CVaR sheet
+    # Load CVaR sheet (stored as: rows=trajectories, columns=months)
     cvar_df = pd.read_excel(file_path, sheet_name="cvar", index_col=0)
     
     # Verify dimensions match
@@ -107,7 +156,14 @@ def load_trajectory_results(
             f"Shape mismatch: returns {returns_df.shape} vs cvar {cvar_df.shape}"
         )
     
-    # Extract metadata (basic information)
+    # TRANSPOSE to maintain expected format for calculations
+    # Storage format: (N_TRAJECTORIES × MONTHS)
+    # Calculation format: (MONTHS × N_TRAJECTORIES)
+    returns_df = returns_df.T
+    cvar_df = cvar_df.T
+    
+    # Extract metadata
+    # After transpose: shape[0] = months, shape[1] = trajectories
     metadata = {
         'n_months': returns_df.shape[0],
         'n_trajectories': returns_df.shape[1],
