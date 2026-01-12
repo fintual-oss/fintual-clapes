@@ -12,6 +12,7 @@ from routes import (
 )
 from loaders import (
     load_glidepaths_parameters,
+    load_glidepaths_cvar_limits,
     load_trajectory_results,
     get_available_curves
 )
@@ -27,17 +28,16 @@ from exporters import export_analysis_to_excel
 # ========================================
 
 # Target return threshold (annualized)
-TARGET_RETURN_THRESHOLD = 0.06  # 4% annual return
+TARGET_RETURN_THRESHOLD = 0.0855
 
 # Percentiles to calculate
 PERCENTILES = [10, 25, 50, 75, 90]
 
 # Process all available curves or specific ones
-PROCESS_ALL_CURVES = True  # True = all available, False = only selected
+PROCESS_ALL_CURVES =True  # True = all available, False = only selected
 CURVES_TO_ANALYZE = [
     "curve_0001",
-    "curve_0002",
-    "curve_0003"
+    "curve_0002"
 ]
 
 # ========================================
@@ -46,18 +46,20 @@ CURVES_TO_ANALYZE = [
 
 def main() -> None:
     """
-    Analyze trajectory results from step 02 and generate compact Excel report.
+    Analyze trajectory results from step 02 and generate Excel report.
 
     For each curve:
-    1. Load trajectory data (returns)
+    1. Load trajectory data (returns and CVaR)
     2. Calculate cumulative annualized returns
     3. Calculate statistics and percentiles
-    4. Combine with curve parameters
-    5. Export a concise Excel file with essential metrics only
+    4. Calculate cumulative risk from CVaR limits (step 01)
+    5. Combine with curve parameters
+    6. Export Excel with 1 sheet:
+       - results: Summary of all curves with statistics and cumulative risk
     """
 
     print("=" * 70)
-    print("TRAJECTORY ANALYSIS - PORTFOLIO PERFORMANCE (Compact Version)")
+    print("TRAJECTORY ANALYSIS - PORTFOLIO PERFORMANCE")
     print("=" * 70)
     print(f"Target return threshold: {TARGET_RETURN_THRESHOLD*100:.1f}%")
     print(f"Percentiles: {PERCENTILES}")
@@ -66,19 +68,26 @@ def main() -> None:
     # ----------------------------------------
     # 1. Load glidepath parameters
     # ----------------------------------------
-    print("\n[1/5] Loading glidepath parameters...")
+    print("\n[1/7] Loading glidepath parameters...")
     params_df = load_glidepaths_parameters(input_glidepaths_path())
-    print(f"   Loaded parameters for {params_df.shape[1]} curves")
+    print(f"   ✓ Loaded parameters for {params_df.shape[1]} curves")
 
     # ----------------------------------------
-    # 2. Get available curves from hit_run_results
+    # 2. Load CVaR limits from step 01
     # ----------------------------------------
-    print("\n[2/5] Finding available trajectory results...")
+    print("\n[2/7] Loading CVaR limit curves from step 01...")
+    cvar_limits_df = load_glidepaths_cvar_limits(input_glidepaths_path())
+    print(f"   ✓ Loaded CVaR limits: {cvar_limits_df.shape[0]} months × {cvar_limits_df.shape[1]} curves")
+
+    # ----------------------------------------
+    # 3. Get available curves from hit_run_results
+    # ----------------------------------------
+    print("\n[3/7] Finding available trajectory results...")
     available_curves = get_available_curves(input_hit_run_dir())
-    print(f"   Found {len(available_curves)} curves with results")
+    print(f"   ✓ Found {len(available_curves)} curves with results")
 
     if len(available_curves) == 0:
-        print("\n No trajectory results found!")
+        print("\n⚠ No trajectory results found!")
         print("   Make sure step 02 has been executed and results are in:")
         print(f"   {input_hit_run_dir()}")
         return
@@ -90,16 +99,16 @@ def main() -> None:
     else:
         curves_to_analyze = [c for c in CURVES_TO_ANALYZE if c in available_curves]
         if len(curves_to_analyze) == 0:
-            print("\n None of the selected curves have results!")
+            print("\n⚠ None of the selected curves have results!")
             return
         print(f"   Analyzing {len(curves_to_analyze)} selected curves:")
         for c in curves_to_analyze:
             print(f"      - {c}")
 
     # ----------------------------------------
-    # 3. Analyze each curve
+    # 4. Analyze each curve
     # ----------------------------------------
-    print("\n[3/5] Analyzing trajectories...")
+    print("\n[4/7] Analyzing trajectories...")
     print("-" * 70)
 
     results_list = []
@@ -108,8 +117,8 @@ def main() -> None:
         print(f"\n[Curve {curve_idx}/{len(curves_to_analyze)}] {curve_name}")
 
         try:
-            # Load trajectory data (returns)
-            returns_df, _, metadata = load_trajectory_results(
+            # Load trajectory data (returns and CVaR)
+            returns_df, cvar_df, metadata = load_trajectory_results(
                 input_hit_run_dir(),
                 curve_name
             )
@@ -140,7 +149,7 @@ def main() -> None:
             if curve_name in params_df.columns:
                 curve_params = params_df[curve_name].to_dict()
             else:
-                print(f"Warning: Parameters not found for {curve_name}")
+                print(f"   ⚠ Warning: Parameters not found for {curve_name}")
                 curve_params = {
                     't_start': np.nan,
                     't_A': np.nan,
@@ -150,12 +159,24 @@ def main() -> None:
                     't_end': np.nan
                 }
 
-            # Combine all information into a single record
+            # ============================================
+            # Calculate cumulative risk from CVaR limits (step 01)
+            # ============================================
+            if curve_name in cvar_limits_df.columns:
+                cvar_limits = cvar_limits_df[curve_name].values
+                # Cumulative risk = sum of all monthly CVaR limits
+                cumulative_risk = np.sum(cvar_limits)
+            else:
+                print(f"   ⚠ Warning: CVaR limits not found for {curve_name}")
+                cumulative_risk = np.nan
+
+            # Combine all information into a single record for summary
             result = {
                 'curve_id': curve_name,
                 **curve_params,
                 'n_trajectories': n_trajectories,
                 'horizon_months': n_months,
+                'cumulative_risk': cumulative_risk,  # NEW: Risk from step 01 curve
                 **return_stats,
                 **return_percentiles
             }
@@ -166,18 +187,19 @@ def main() -> None:
             print(f"      Return (annualized mean): {return_stats['return_mean']*100:.2f}%")
             print(f"      Trajectories > {TARGET_RETURN_THRESHOLD*100:.0f}%: "
                   f"{return_stats['pct_above_target']*100:.1f}%")
+            print(f"      Cumulative risk (area under curve): {cumulative_risk:.4f}")
 
         except Exception as e:
-            print(f"Error analyzing {curve_name}: {e}")
+            print(f"⚠ Error analyzing {curve_name}: {e}")
             continue
 
     # ----------------------------------------
-    # 4. Create DataFrame with all results
+    # 5. Create DataFrame with all results
     # ----------------------------------------
-    print("\n[4/5] Consolidating results...")
+    print("\n[5/7] Consolidating results...")
 
     if len(results_list) == 0:
-        print("No results to export!")
+        print("⚠ No results to export!")
         return
 
     results_df = pd.DataFrame(results_list)
@@ -188,27 +210,25 @@ def main() -> None:
         ascending=[False, False]
     )
 
-    print(f"   Consolidated {len(results_df)} curve analyses")
+    print(f"   ✓ Consolidated {len(results_df)} curve analyses")
 
     # ----------------------------------------
-    # 5. Export to Excel
+    # 6. Export to Excel
     # ----------------------------------------
-    print("\n[5/5] Exporting to Excel...")
+    print("\n[6/7] Exporting to Excel...")
 
     os.makedirs(output_dir(), exist_ok=True)
     output_file = output_analysis_file()
 
     export_analysis_to_excel(
         results_df=results_df,
-        output_file=output_file,
-        target_return=TARGET_RETURN_THRESHOLD,
-        percentiles=PERCENTILES
+        output_file=output_file
     )
 
     print(f"   ✓ Saved: {output_file}")
 
     # ----------------------------------------
-    # Summary information
+    # 7. Summary information
     # ----------------------------------------
     print("\n" + "=" * 70)
     print("ANALYSIS SUMMARY")
@@ -224,12 +244,14 @@ def main() -> None:
         print(f"  - t_A: {best_curve['t_A']:.0f} years")
         print(f"  - Return (mean): {best_curve['return_mean']*100:.2f}%")
         print(f"  - Trajectories > target: {best_curve['pct_above_target']*100:.1f}%")
+        print(f"  - Cumulative risk: {best_curve['cumulative_risk']:.4f}")
 
     print("\n" + "=" * 70)
     print("COMPLETED SUCCESSFULLY")
     print("=" * 70)
     print(f"\nResults saved to: {output_file}")
-    print(f"Open with Excel to view consolidated analyses")
+    print(f"Sheet:")
+    print(f"  - 'results': Summary of all curves with statistics and cumulative risk")
 
 
 if __name__ == "__main__":

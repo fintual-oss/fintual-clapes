@@ -10,9 +10,16 @@ def export_curve_results(
     """
     Export CVaR and returns matrices to Excel.
     
+    IMPORTANT: Matrices are TRANSPOSED before saving to support large simulations.
+    
     Creates an Excel file with two sheets:
-      - 'cvar': CVaR values (rows=months, columns=trajectories)
-      - 'returns': Average returns (rows=months, columns=trajectories)
+      - 'cvar': CVaR values (rows=trajectories, columns=months)
+      - 'returns': Average returns (rows=trajectories, columns=months)
+    
+    This format allows simulating millions of trajectories without hitting Excel's
+    column limit (16,384 columns). With transposed format:
+    - Rows: trajectories (can be 1,000,000+)
+    - Columns: months (typically 480)
     
     Parameters:
     -----------
@@ -20,32 +27,40 @@ def export_curve_results(
         Path to the output Excel file
     cvar_matrix : np.ndarray
         CVaR matrix (shape: HORIZON_MONTHS × N_PORTFOLIOS)
+        Will be transposed to (N_PORTFOLIOS × HORIZON_MONTHS) before saving
     returns_matrix : np.ndarray
         Returns matrix (shape: HORIZON_MONTHS × N_PORTFOLIOS)
+        Will be transposed to (N_PORTFOLIOS × HORIZON_MONTHS) before saving
     n_portfolios : int
         Number of portfolios (trajectories)
     """
-    # Trajectory column names: trajectory_001, trajectory_002, etc.
+    # Trajectory row labels: trajectory_001, trajectory_002, etc.
     trajectory_names = [f"trajectory_{i+1:03d}" for i in range(n_portfolios)]
     
-    # Month row labels: 1, 2, 3, ..., 360
+    # Month column labels: Month_1, Month_2, Month_3, ..., Month_480
     n_months = cvar_matrix.shape[0]
-    month_labels = list(range(1, n_months + 1))
+    month_labels = [f"Month_{i}" for i in range(1, n_months + 1)]
     
-    # Create DataFrames
+    # TRANSPOSE matrices: (MONTHS × N_PORTFOLIOS) → (N_PORTFOLIOS × MONTHS)
+    # This allows storing millions of trajectories in Excel
+    cvar_matrix_T = cvar_matrix.T
+    returns_matrix_T = returns_matrix.T
+    
+    # Create DataFrames with TRANSPOSED orientation
+    # Rows: trajectories, Columns: months
     cvar_df = pd.DataFrame(
-        cvar_matrix,
-        index=month_labels,
-        columns=trajectory_names
+        cvar_matrix_T,
+        index=trajectory_names,
+        columns=month_labels
     )
-    cvar_df.index.name = "Month"
+    cvar_df.index.name = "Trajectory"
     
     returns_df = pd.DataFrame(
-        returns_matrix,
-        index=month_labels,
-        columns=trajectory_names
+        returns_matrix_T,
+        index=trajectory_names,
+        columns=month_labels
     )
-    returns_df.index.name = "Month"
+    returns_df.index.name = "Trajectory"
     
     # Export to Excel with two sheets
     with pd.ExcelWriter(output_file, engine="xlsxwriter") as writer:

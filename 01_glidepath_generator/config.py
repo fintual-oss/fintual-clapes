@@ -2,9 +2,9 @@
 
 # Ages (years)
 T_START_YEARS = 25          # starting age
-T_END_YEARS   = 65          # retirement age
+T_END_YEARS   = 60          # retirement age
 # Transition end age t_B (years). If t_B == 65, the path is flat at retirement.
-T_B_YEAR = 65
+T_B_YEAR = 60
 
 # Derived (months)
 T_START_MONTHS = T_START_YEARS * 12

@@ -32,7 +32,7 @@ ALPHA_CVAR = 0.90  # CVaR confidence level (0.90 = worst 10% tail)
 # Portfolio generation
 N_PORTFOLIOS_PER_MONTH = 1_000  # Number of portfolios to generate per month
 N_TRAJ = 10_000  # Number of Monte Carlo scenarios
-HORIZON_MONTHS = 480  # 40 years
+HORIZON_MONTHS = 420  # 40 years
 
 # Random seeds (for reproducibility)
 RETURNS_SEED = 42  # Seed for simulated returns
@@ -43,8 +43,7 @@ SCENARIO_SEED = 999  # Seed for scenario selection per month
 PROCESS_ALL_CURVES = True  # True = process all curves, False = only selected
 CURVES_TO_PROCESS = [
     "curve_0001",
-    "curve_0002",
-    "curve_0003",
+    "curve_0002"
 ]  # Curves to process if PROCESS_ALL_CURVES=False
 
 # Validation

@@ -6,7 +6,7 @@ def load_glidepaths_universe(glides_file: str):
     Load CVaR glidepaths from the step 01 output file.
     
     Expected structure:
-      - Rows: t_start, t_A, A, B, t_B, t_end, Month_1, ..., Month_360
+      - Rows: t_start, t_A, A, B, t_B, t_end, Month_1, ..., Month_480
       - Columns: curve_0001, curve_0002, ..., curve_XXXX
     
     Parameters:
@@ -19,7 +19,7 @@ def load_glidepaths_universe(glides_file: str):
     params_df : pd.DataFrame
         Parameters for each curve (rows: t_start, t_A, A, B, t_B, t_end)
     glides_df : pd.DataFrame
-        Monthly CVaR limits (rows: months 1..360, columns: curve names)
+        Monthly CVaR limits (rows: months 1..480, columns: curve names)
     """
     # Load the full Excel file
     full_df = pd.read_excel(glides_file, header=0, index_col=0)

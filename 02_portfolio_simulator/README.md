@@ -2,273 +2,399 @@
 
 ## Overview
 
-This module generates feasible portfolio trajectories that comply with CVaR glidepath constraints using the Hit-and-Run algorithm. For each glidepath curve from step 01, it creates multiple portfolio trajectories where each month's portfolio satisfies the CVaR limit for that month.
+This module takes the CVaR glidepath curves from step 01 and generates actual portfolio trajectories that obey the risk constraints. For each glidepath curve, it creates many different portfolio paths. Each path represents one possible way to invest while staying within the CVaR limits.
 
-**Key Feature**: Each month uses a **single randomly selected scenario** (not averaged), ensuring all portfolios in that month face the same market condition for fair comparison.
+The key innovation is the Hit-and-Run algorithm, which efficiently samples portfolios that satisfy the CVaR constraint.
 
 ## What Does This Module Do?
 
-**Input**: CVaR glidepath curves (from step 01) + Historical asset returns  
-**Process**: Generate N portfolios per month that satisfy CVaR < CVaR_limit(month)  
-**Output**: Portfolio trajectories with monthly CVaR and return values
+**Input:** 
+- CVaR glidepath curves from step 01 (the risk rules)
+- Historical asset returns (to simulate future market conditions)
 
-## Key Features
+**Process:** 
+- Simulate future market scenarios
+- For each month and each glidepath, generate N different portfolios where CVaR is below the limit
+- Calculate returns for each portfolio using a single randomly selected scenario per month
+- Build complete trajectories by connecting portfolios across months
 
-- **Hit-and-Run Algorithm**: Efficient sampling from CVaR-constrained feasible region
-- **Two Simulation Methods**: MVN (faster) or Copula (more realistic)
-- **Single Scenario per Month**: All portfolios in month t face the same randomly selected market scenario
-- **Multiple Trajectories**: Generate multiple feasible paths per glidepath
-- **Comprehensive Output**: Both CVaR values and returns for each trajectory
-- **Fully Reproducible**: Seeded random number generation for consistent results
+**Output:** 
+- Excel files (one per glidepath curve) containing CVaR values and returns for all trajectories
 
 ## File Structure
 
 ```
 02_portfolio_simulator/
-├── __init__.py                    # Package metadata
-├── main.py                        # Main execution script with configuration
-├── routes.py                      # Path management
-├── loaders.py                     # Load glidepaths and validate data
-├── make_psd.py                    # Ensure covariance matrices are PSD
-├── simulate_asset_returns.py      # Asset return simulation (MVN & Copula)
-├── cvar_portfolio_sampler.py      # Hit-and-Run algorithm for CVaR portfolios
-└── exporters.py                   # Export results to Excel
+├── main.py                      # Main execution script (EDIT PARAMETERS HERE)
+├── routes.py                    # Path management
+├── loaders.py                   # Load glidepaths and historical returns
+├── make_psd.py                  # Ensure covariance matrices are positive semi-definite
+├── simulate_asset_returns.py    # Simulate future returns (MVN or Copula)
+├── cvar_portfolio_sampler.py    # Hit-and-Run algorithm for CVaR portfolios
+├── exporters.py                 # Export results to Excel
+└── __init__.py                  # Package documentation
 ```
 
-## Configuration Parameters (in main.py)
+## Configuration Parameters
 
-All parameters can be edited at the top of `main.py`:
+All parameters are defined at the top of `main.py`. Edit this file to configure the simulation.
 
-### 1. Simulation Method
+### Simulation Method
+
 ```python
 SIMULATION_METHOD = "copula"  # Options: "mvn" or "copula"
 ```
 
+**What it means:** How to simulate future asset returns.
+
 **Options:**
-- **"mvn"** (Multivariate Normal):
-  - ✅ Faster computation
-  - ✅ Simple, well-understood
-  - ❌ Assumes Gaussian returns (may miss tail behavior)
 
-- **"copula"** (Gaussian Copula):
-  - ✅ Preserves empirical marginal distributions
-  - ✅ Better captures tail dependencies and asymmetries
-  - ✅ More realistic for financial returns
-  - ❌ Slower computation
+**"mvn" (Multivariate Normal):**
+- Assumes asset returns follow a normal distribution
+- Faster computation
+- Simpler method
+- May not capture extreme market events well
 
-### 2. CVaR Parameters
+**"copula" (Gaussian Copula):**
+- Preserves the actual distribution of historical returns for each asset
+- Better captures extreme events and tail behavior
+- More realistic for financial data
+- Slower computation
+
+**Recommendation:** Use "copula" for final analysis, use "mvn" for quick testing.
+
+### CVaR Confidence Level
+
 ```python
 ALPHA_CVAR = 0.90  # CVaR confidence level
 ```
 
-**Description**: CVaR confidence level
-- `0.90` = worst 10% tail
-- `0.95` = worst 5% tail
-- Higher α = more conservative (focuses on worse outcomes)
+**What it means:** This defines which tail of the distribution we care about when measuring risk.
 
-### 3. Portfolio Generation
+**How to interpret:**
+- 0.90 means we look at the worst 10% of scenarios (bottom 10%)
+- 0.95 means we look at the worst 5% of scenarios (bottom 5%)
+
+**Note:** The code internally converts this to `confidence_level = 1.0 - ALPHA_CVAR` for the CVaR calculation. So ALPHA_CVAR=0.90 becomes confidence_level=0.10 in the CVaRPortfolioSampler.
+
+### Portfolio Generation
+
 ```python
-N_PORTFOLIOS_PER_MONTH = 100  # Number of portfolios per month
-N_TRAJ = 1_000                # Monte Carlo scenarios for CVaR estimation
-HORIZON_MONTHS = 480          # Total months in simulation
+N_PORTFOLIOS_PER_MONTH = 1000  # Number of portfolios per month
+N_TRAJ = 10000                 # Monte Carlo scenarios
+HORIZON_MONTHS = 480           # Total months in simulation
 ```
 
-**Parameters:**
-- **N_PORTFOLIOS_PER_MONTH**: How many different portfolios to generate per month
-  - Each becomes a trajectory when connected across months
-  - Typical values: 50-200
-  
-- **N_TRAJ**: Number of Monte Carlo scenarios for simulating asset returns
-  - Used for CVaR calculation
-  - Higher = more accurate CVaR estimates but slower
-  - Minimum recommended: 100
-  - Typical values: 1,000-10,000
+**What they mean:**
 
-- **HORIZON_MONTHS**: Total investment horizon in months
-  - Must match the glidepaths from step 01
-  - Example: 480 months = 40 years (age 25 to 65)
+**N_PORTFOLIOS_PER_MONTH:**
+- How many different portfolios to generate for each month
+- Each portfolio becomes one trajectory when connected across all months
+- More portfolios = more diverse strategies tested
+- Current setting: 1000 trajectories per curve
 
-### 4. Random Seeds (for reproducibility)
+**N_TRAJ:**
+- Number of Monte Carlo scenarios used to estimate CVaR
+- More scenarios = more accurate CVaR estimates but slower
+- Must be at least 100 for reasonable accuracy
+- Current setting: 10000 scenarios
+
+**HORIZON_MONTHS:**
+- Total number of months in the investment horizon
+- Must match the number of months in step 01
+- Formula: (T_END_YEARS - T_START_YEARS) × 12
+- Example: (65 - 25) × 12 = 480 months = 40 years
+- **CRITICAL:** This must equal the MONTHS value from step 01 config
+
+### Random Seeds
+
 ```python
 RETURNS_SEED = 42      # Seed for asset return simulation
 HIT_RUN_SEED = 123     # Seed for Hit-and-Run algorithm
 SCENARIO_SEED = 999    # Seed for scenario selection per month
 ```
 
-**Description:**
-- **RETURNS_SEED**: Controls the Monte Carlo simulation of asset returns
-- **HIT_RUN_SEED**: Controls the Hit-and-Run portfolio generation
-- **SCENARIO_SEED**: Controls which scenario is selected for each month
-- Same seeds = identical results (reproducibility)
-- Change seeds to explore different random realizations
+**What they mean:** These control the random number generation to make results reproducible.
 
-### 5. Curve Selection
+**RETURNS_SEED:**
+- Controls the simulation of future asset returns
+- Same seed = identical market scenarios generated
+
+**HIT_RUN_SEED:**
+- Controls the Hit-and-Run algorithm that generates portfolios
+- Same seed = identical portfolios generated
+
+**SCENARIO_SEED:**
+- Controls which scenario is selected for each month
+- Same seed = identical market realizations each month
+
+**Why three separate seeds?**
+- Allows you to test different aspects independently
+- Example: Keep RETURNS_SEED and SCENARIO_SEED fixed, change HIT_RUN_SEED to test different portfolio strategies under the same market conditions
+
+**Reproducibility:** Using the same three seeds will produce exactly the same results every time.
+
+### Curve Selection
+
 ```python
-PROCESS_ALL_CURVES = True  # Process all curves or selected subset?
+PROCESS_ALL_CURVES = True  # Process all curves or selected subset
 
 CURVES_TO_PROCESS = [      # Only used if PROCESS_ALL_CURVES = False
     "curve_0001",
     "curve_0002",
-    "curve_0003",
+    "curve_0003"
 ]
 ```
 
-**Options:**
-- **PROCESS_ALL_CURVES = True**: Process all curves from step 01
-- **PROCESS_ALL_CURVES = False**: Only process curves listed in CURVES_TO_PROCESS
-  - Useful for testing or analyzing specific glidepaths
+**What it means:**
 
-## Usage
+**PROCESS_ALL_CURVES = True:**
+- Process every curve from step 01
+- Use this for complete analysis
 
-### Basic Usage
+**PROCESS_ALL_CURVES = False:**
+- Process only the curves listed in CURVES_TO_PROCESS
+- Use this for testing or analyzing specific glidepaths
+- Faster when you only want to test a few curves
+
+## How to Run
+```bash
+python -m 02_portfolio_simulator.main
+```
+
+Or, if you are inside the `02_portfolio_simulator/` directory:
 
 ```bash
-cd 02_portfolio_simulator
 python main.py
 ```
 
 ### Prerequisites
 
-**Required files**:
-1. `returns.csv` - Historical monthly returns for assets (at repo root)
-2. `outputs/glidepaths_universe.xlsx` - From step 01
+Before running, ensure these files exist:
 
-### Output
+1. `returns.csv` at the repository root (historical asset returns)
+2. `outputs/glidepaths_universe.xlsx` (from step 01)
 
-**Location**: `outputs/hit_run_results/`
+## Output Files
 
-**Files**: `curve_XXXX_results.xlsx` (one per curve)
+**Location:** `outputs/hit_run_results/`
 
-**Structure**: Each Excel file has 2 sheets:
+**Files:** One Excel file per curve: `curve_XXXX_results.xlsx`
 
-#### Sheet 1: "cvar"
-Monthly CVaR values for each trajectory
+**Structure:** Each Excel file contains 2 sheets:
+
+### Sheet 1: "cvar"
+
+Monthly CVaR values for each trajectory.
+
+**Format (IMPORTANT - matrices are transposed for Excel compatibility):**
+- **Rows:** Trajectories (trajectory_001, trajectory_002, ..., trajectory_1000)
+- **Columns:** Months (Month_1, Month_2, ..., Month_480)
+- **Values:** CVaR at that month for that trajectory (decimal form)
+
+**Example:**
 ```
-       trajectory_001  trajectory_002  trajectory_003  ...
-Month                                                   
-1            0.0587          0.0592          0.0581   ...
-2            0.0588          0.0593          0.0582   ...
+Trajectory    Month_1  Month_2  Month_3  ...  Month_480
+trajectory_001  0.0587   0.0588   0.0587  ...    0.0299
+trajectory_002  0.0592   0.0593   0.0591  ...    0.0298
+trajectory_003  0.0581   0.0582   0.0583  ...    0.0300
 ...
-480          0.0499          0.0498          0.0500   ...
 ```
 
-#### Sheet 2: "returns"
-Monthly returns for each trajectory (single scenario, not averaged)
+**Interpretation:** The value at row trajectory_001, column Month_120 tells you the CVaR of portfolio 1 at month 120.
+
+**Why transposed?** Excel has a limit of 16,384 columns. By putting trajectories in rows and months in columns, we can simulate millions of trajectories (Excel supports 1,048,576 rows) while keeping months (typically 480) well within the column limit.
+
+### Sheet 2: "returns"
+
+Monthly returns for each trajectory.
+
+**Format (IMPORTANT - matrices are transposed for Excel compatibility):**
+- **Rows:** Trajectories (trajectory_001, trajectory_002, ..., trajectory_1000)
+- **Columns:** Months (Month_1, Month_2, ..., Month_480)
+- **Values:** Return at that month for that trajectory (decimal form)
+
+**Example:**
 ```
-       trajectory_001  trajectory_002  trajectory_003  ...
-Month                                                   
-1            0.0065          0.0068          0.0063   ...
-2            0.0064          0.0067          0.0062   ...
+Trajectory    Month_1  Month_2  Month_3  ...  Month_480
+trajectory_001  0.0065   0.0064   0.0066  ...    0.0045
+trajectory_002  0.0068   0.0067   0.0065  ...    0.0046
+trajectory_003  0.0063   0.0062   0.0064  ...    0.0044
 ...
-480          0.0045          0.0046          0.0044   ...
 ```
+
+**Interpretation:** The value at row trajectory_001, column Month_120 tells you the return earned by portfolio 1 during month 120.
+
+**IMPORTANT:** These returns use a single randomly selected scenario per month (not averaged over all scenarios). This is a key feature explained below.
 
 ## How It Works
 
 ### Overall Process
 
-For each glidepath curve:
+For each glidepath curve, the simulation follows these steps:
 
-1. **Load CVaR limits** for all months (from step 01)
-2. **Simulate asset returns** for all months using chosen method (MVN or Copula)
-3. **Generate random scenario indices** - one per month (controlled by SCENARIO_SEED)
-4. **For each month t**:
-   - Get CVaR limit for month t
-   - Get scenario index for month t
-   - Use Hit-and-Run to generate N portfolios where CVaR < limit
-   - Calculate returns using the **single selected scenario** for that month
-5. **Trajectory i** = portfolio i connected across all months
-6. **Export** CVaR and returns matrices to Excel
+**Step 1: Load CVaR Limits**
+- Read the CVaR limit for each month from the glidepath curve
+- These limits define the constraints for portfolio generation
 
-### Key Modification: Single Scenario per Month
+**Step 2: Simulate Future Asset Returns**
+- Using either MVN or Copula method, simulate N_TRAJ scenarios for each month
+- This creates a 3D array: (HORIZON_MONTHS × N_TRAJ × N_ASSETS)
+- Example shape: (480 × 10000 × 9) for 480 months, 10000 scenarios, 9 assets
 
-**Important**: This implementation uses a **single randomly selected scenario** per month instead of averaging over all scenarios.
+**Step 3: Generate Scenario Selection**
+- For each month, randomly select one scenario index (0 to N_TRAJ-1)
+- This scenario will be used to calculate returns for all portfolios in that month
+- Controlled by SCENARIO_SEED for reproducibility
 
-**How it works**:
+**Step 4: Generate Portfolios Month by Month**
+
+For each month t:
+
+1. Get the CVaR limit for month t from the glidepath
+2. Get the simulated returns for month t (all N_TRAJ scenarios)
+3. Use Hit-and-Run algorithm to generate N_PORTFOLIOS_PER_MONTH portfolios where CVaR < limit
+4. Calculate each portfolio's CVaR using all N_TRAJ scenarios
+5. Calculate each portfolio's return using the single selected scenario for month t
+6. Store the CVaR and return values
+
+**Step 5: Build Trajectories**
+- Trajectory i is formed by connecting portfolio i from each month
+- Each trajectory has HORIZON_MONTHS CVaR values and HORIZON_MONTHS return values
+
+**Step 6: Export to Excel**
+- Save CVaR matrix (N_PORTFOLIOS_PER_MONTH × HORIZON_MONTHS) - transposed format
+- Save returns matrix (N_PORTFOLIOS_PER_MONTH × HORIZON_MONTHS) - transposed format
+
+### Key Feature: Single Scenario per Month
+
+This implementation uses an important modification: each month uses a single randomly selected scenario instead of averaging over all scenarios.
+
+**How it works:**
+
 ```python
 # For each month t:
 scenario_idx = scenario_indices[t]  # Random index (0 to N_TRAJ-1)
 selected_scenario_returns = month_returns[scenario_idx, :]  # One scenario
-portfolio_returns = portfolios @ selected_scenario_returns  # Not averaged
+portfolio_returns = portfolios @ selected_scenario_returns  # Calculate returns
 ```
 
-**Why this approach?**
-- ✅ **Fair comparison**: All portfolios in month t face the same market condition
-- ✅ **More realistic**: Markets have one actual realization per period
-- ✅ **Comparable trajectories**: Can directly compare portfolio performance
-- ✅ **Reproducible**: Same SCENARIO_SEED gives same market realizations
+**Why use a single scenario?**
 
-**Note**: CVaR is still calculated using **all N_TRAJ scenarios** to ensure portfolios satisfy risk constraints. Only the final returns use a single scenario.
+1. **Fair comparison:** All portfolios in month t face the same market condition. Portfolio A didn't get lucky with good scenarios while Portfolio B got unlucky.
+
+2. **Comparable trajectories:** You can directly compare trajectory performance because they all experienced the same market path.
+
+3. **Reproducible:** Using the same SCENARIO_SEED gives the same market realizations every time.
+
+**Note:** CVaR is still calculated using all N_TRAJ scenarios to ensure portfolios satisfy risk constraints. Only the final returns use a single scenario.
 
 ### Hit-and-Run Algorithm
 
-Samples uniformly from the feasible region defined by:
-- **Constraint 1**: Σw_i = 1 (weights sum to 1)
-- **Constraint 2**: w_i ≥ 0 (no short-selling)
-- **Constraint 3**: CVaR(w) < CVaR_limit (risk constraint)
+The Hit-and-Run algorithm efficiently generates random portfolios that satisfy three constraints:
 
-**Steps**:
-1. Find initial feasible portfolio
-2. Repeat N_PORTFOLIOS_PER_MONTH times:
-   - Choose random direction on the simplex
-   - Find feasible line segment along this direction
-   - Sample uniformly from the segment
-   - Move to new portfolio
-3. Collect samples after burn-in period
+**Constraints:**
+1. Weights sum to 1: Σw_i = 1
+2. No short selling: w_i ≥ 0 for all i
+3. CVaR is below limit: CVaR(w) < CVaR_limit
+
+**How it works:**
+
+1. **Find starting point:** Find any portfolio that satisfies all three constraints
+
+2. **Repeat N_PORTFOLIOS_PER_MONTH times:**
+   - Choose a random direction on the simplex (the set of all valid portfolios)
+   - Find the longest line segment in that direction that stays within the feasible region
+   - Pick a random point along that line segment
+   - Move to that new portfolio
+
+3. **Burn-in period:** Discard the first 50 portfolios to ensure we're sampling from the entire feasible region
+
+4. **Collect samples:** Keep the next N_PORTFOLIOS_PER_MONTH portfolios
 
 ### CVaR Calculation
 
-For a portfolio with weights **w**:
+For a portfolio with weights w, CVaR is calculated as:
 
-1. Calculate portfolio returns: r_p = **R** · **w** (for all N_TRAJ scenarios)
-2. Convert to losses: L = -r_p
-3. Find worst α tail (e.g., worst 10% if α=0.90)
-4. CVaR = average of losses in the tail
+1. Calculate portfolio returns for all N_TRAJ scenarios: r_p = R · w
+2. Convert returns to losses: L = -r_p
+3. Find the worst α tail (e.g., worst 10% if α=0.90)
+4. CVaR = average of the losses in that tail
 
-**Example** (α=0.90, N_TRAJ=1000):
-- CVaR = average of worst 100 scenarios
+**Example with α=0.90 and N_TRAJ=10000:**
+- Sort the 10000 portfolio returns from worst to best
+- Take the worst 1000 scenarios (bottom 10%)
+- CVaR = average loss in those 1000 worst scenarios
 
-### Simulation Methods
+### Asset Return Simulation Methods
 
-#### MVN (Multivariate Normal)
+#### Method 1: MVN (Multivariate Normal)
 
-```python
-# Estimate from historical data
-μ = mean(historical_returns)
-Σ = covariance(historical_returns)
+**Process:**
+1. Estimate mean vector μ and covariance matrix Σ from historical returns
+2. Ensure Σ is positive semi-definite using `f_make_psd()`
+3. For each month, draw N_TRAJ samples from N(μ, Σ)
 
-# Simulate for each month
-R_future ~ N(μ, Σ)
-```
-
-**Assumptions**:
+**Assumptions:**
 - Returns are normally distributed
-- Constant mean and covariance
-- Linear correlations
+- Correlations are linear and constant
+- No skewness or heavy tails
 
-#### Copula (Gaussian Copula)
+**When to use:** Quick testing, baseline comparisons
 
-```python
-# Step 1: Transform historical returns to uniform [0,1]
-U = empirical_cdf(historical_returns)
+#### Method 2: Copula (Gaussian Copula)
 
-# Step 2: Transform to Gaussian space
-Z = Φ⁻¹(U)
+**Process:**
+1. Transform historical returns to uniform [0,1] using empirical CDF
+2. Transform uniforms to Gaussian space: Z = Φ^(-1)(U)
+3. Estimate correlation matrix in Gaussian space
+4. For each month:
+   - Simulate correlated Gaussian variables
+   - Transform back to uniforms
+   - Transform to returns using empirical inverse CDF
 
-# Step 3: Estimate correlation in Gaussian space
-ρ_copula = correlation(Z)
-
-# Step 4: Simulate
-Z_future ~ N(0, ρ_copula)
-U_future = Φ(Z_future)
-R_future = inverse_empirical_cdf(U_future)
-```
-
-**Advantages**:
+**Advantages:**
 - Preserves exact marginal distributions from historical data
-- Captures non-Gaussian features (skewness, kurtosis)
-- Better tail dependence modeling
+- Captures skewness, kurtosis, and other non-normal features
+- Better models tail dependencies
 
----
+**When to use:** Final analysis, realistic scenarios
 
-**Next Step**: Run `03_trajectory_analyzer` to analyze and rank the generated trajectories
+### Making Covariance Matrix Positive Semi-Definite
+
+The `f_make_psd()` function ensures the covariance matrix is valid:
+
+1. Compute eigenvalues and eigenvectors of Σ
+2. Replace any negative eigenvalues with a small positive value (eps=1e-12)
+3. Reconstruct the matrix using the corrected eigenvalues
+
+**Why this is needed:**
+- Numerical errors can cause estimated covariance matrices to have tiny negative eigenvalues
+- A covariance matrix must be positive semi-definite to be mathematically valid
+- Without this correction, the MVN simulation would fail
+
+## Important Notes
+
+### Horizon Consistency
+
+The HORIZON_MONTHS parameter must match the number of months in step 01.
+
+**Example:**
+- Step 01: T_START_YEARS=25, T_END_YEARS=65 → 480 months
+- Step 02: HORIZON_MONTHS must equal 480
+
+**What happens if they don't match:**
+- If HORIZON_MONTHS is too small: Not all glidepath months will be simulated
+- If HORIZON_MONTHS is too large: Code will fail because glidepath doesn't have enough months
+
+### Validation
+
+The code includes built-in validation:
+- Checks that SIMULATION_METHOD is either "mvn" or "copula"
+- Checks that ALPHA_CVAR is between 0 and 1
+- Checks that N_PORTFOLIOS_PER_MONTH ≥ 1
+- Warns if N_TRAJ < 100 (unreliable CVaR estimates)
+
+## Next Step
+
+After running this module, proceed to step 03 (trajectory_analyzer) to analyze the performance of all generated trajectories and identify the best glidepath strategies.

@@ -1,32 +1,26 @@
 import pandas as pd
-from typing import List
 
 def export_analysis_to_excel(
     results_df: pd.DataFrame,
-    output_file: str,
-    target_return: float,
-    percentiles: List[int]
+    output_file: str
 ) -> None:
     """
-    Export analysis results to Excel - simple, no formatting.
+    Export analysis results to Excel with single sheet.
     
-    Creates a single sheet with all results.
+    Creates 1 sheet:
+    - 'results': Summary of all curves with statistics and cumulative risk
     
     Parameters:
     -----------
     results_df : pd.DataFrame
-        DataFrame with all analysis results
+        DataFrame with all analysis results (summary)
     output_file : str
         Path to output Excel file
-    target_return : float
-        Target return threshold used (not used, kept for compatibility)
-    percentiles : List[int]
-        Percentiles calculated (not used, kept for compatibility)
     """
     
-    # Export to Excel - single sheet, no formatting
-    results_df.to_excel(output_file, sheet_name='results', index=False)
+    with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
+        # Sheet: Summary results
+        results_df.to_excel(writer, sheet_name='results', index=False)
     
-    print(f"   Excel file created:")
-    print(f"      - {len(results_df)} curves analyzed")
-    print(f"      - {len(results_df.columns)} columns")
+    print(f"   ✓ Excel file created:")
+    print(f"      - Sheet 'results': {len(results_df)} curves analyzed")
