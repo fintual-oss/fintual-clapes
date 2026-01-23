@@ -38,9 +38,9 @@ class PensionSimulator:
             annual_return (float): Annual real return during accumulation
         
         Returns:
-            tuple: (final_balance, list_salaries_last_10_years, monthly_detail)
+            tuple: (final_balance, list_salaries_last_12_months, monthly_detail)
                 - final_balance (float): Accumulated balance in UF at retirement
-                - salaries_last_10_years (list): List of monthly salaries of last 10 years in UF
+                - salaries_last_12_months (list): List of monthly salaries of last 12 months in UF
                 - monthly_detail (list): List of dictionaries with month-by-month information
         """
         # Determine parameters by gender
@@ -69,7 +69,7 @@ class PensionSimulator:
         
         # Lists to store information
         detail = []
-        salaries_last_10_years = []
+        salaries_last_12_months = []
         
         # Month-by-month simulation
         for month in range(total_months):
@@ -88,9 +88,10 @@ class PensionSimulator:
             # Apply return to accumulated balance
             balance *= (1 + monthly_return)
             
-            # Save salaries from last 10 years
-            if age_current >= age_retirement - 10:
-                salaries_last_10_years.append(salary_current)
+            # Save salaries from last 12 months (last year before retirement)
+            months_to_retirement = total_months - month
+            if months_to_retirement <= 12:
+                salaries_last_12_months.append(salary_current)
             
             # Save monthly detail
             detail.append({
@@ -103,7 +104,7 @@ class PensionSimulator:
                 'balance_uf': round(balance, 2)
             })
         
-        return balance, salaries_last_10_years, detail
+        return balance, salaries_last_12_months, detail
     
     def calculate_monthly_pension(self, accumulated_balance, is_male):
         """
@@ -148,23 +149,23 @@ class PensionSimulator:
         
         return pension
     
-    def calculate_replacement_rate(self, pension, salaries_last_10_years):
+    def calculate_replacement_rate(self, pension, salaries_last_12_months):
         """
         Calculate the replacement rate as the ratio between pension and the average
-        of salaries from the last 10 years.
+        of salaries from the last 12 months.
         
-        Replacement Rate = Pension / Average(Salaries last 10 years)
+        Replacement Rate = Pension / Average(Salaries last 12 months)
         
         Args:
             pension (float): Monthly pension in UF
-            salaries_last_10_years (list): List of monthly salaries in UF
+            salaries_last_12_months (list): List of monthly salaries from last 12 months in UF
         
         Returns:
             tuple: (replacement_rate, average_salary)
                 - replacement_rate (float): Pension/salary ratio
-                - average_salary (float): Average of salaries from last 10 years in UF
+                - average_salary (float): Average of salaries from last 12 months in UF
         """
-        average_salary = np.mean(salaries_last_10_years)
+        average_salary = np.mean(salaries_last_12_months)
         replacement_rate = pension / average_salary
         return replacement_rate, average_salary
     
@@ -198,11 +199,11 @@ class PensionSimulator:
             return_median = (return_min + return_max) / 2
             
             # Simulate with median return
-            balance, salaries_10_years, _ = self.simulate_accumulation(
+            balance, salaries_12_months, _ = self.simulate_accumulation(
                 is_male, with_gaps, return_median
             )
             pension = self.calculate_monthly_pension(balance, is_male)
-            replacement_rate, _ = self.calculate_replacement_rate(pension, salaries_10_years)
+            replacement_rate, _ = self.calculate_replacement_rate(pension, salaries_12_months)
             
             # Check convergence
             difference = abs(replacement_rate - self.params.replacement_rate_target)
