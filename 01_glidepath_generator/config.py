@@ -14,11 +14,11 @@ T_END_MONTHS   = T_END_YEARS * 12
 MONTHS = T_END_MONTHS - T_START_MONTHS  
 
 # Transition start age t_A (years). — full range 40..50
-T_A_YEARS_VALUES = list(range(35, 51))
+T_A_YEARS_VALUES = list(range(30, 61))
 
 # Independent ranges for A and B (CVaR caps)
 A_MIN, A_MAX, A_STEP = 0.05, 0.10, 0.01
-B_MIN, B_MAX, B_STEP = 0.03, 0.03, 0.01
+B_MIN, B_MAX, B_STEP = 0.03, 0.10, 0.01
 
 # Output filename (Excel)
 OUTPUT_XLSX = "glidepaths_universe.xlsx"
