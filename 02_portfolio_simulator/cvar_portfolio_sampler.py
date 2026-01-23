@@ -354,13 +354,12 @@ class CVaRPortfolioSampler:
         n_samples=1000,
         burn_in=100,
         initial_point=None,
-        batch_size=100,
     ):
         """
-        Generate portfolios in batches to reduce overhead and enable vectorized CVaR calculation.
+        Generate portfolios using Hit-and-Run algorithm.
 
-        This method generates the exact number of requested portfolios, just like the original method,
-        but uses vectorized CVaR calculations for better performance.
+        This method generates portfolios that satisfy the CVaR constraint
+        without calculating CVaR values after generation (for efficiency).
 
         Parameters:
         -----------
@@ -372,15 +371,11 @@ class CVaRPortfolioSampler:
             Number of burn-in iterations
         initial_point : array-like, optional
             Starting portfolio (must be feasible). If None, will find one.
-        batch_size : int, default=100
-            Number of portfolios to process in each batch for CVaR calculation
 
         Returns:
         --------
         samples : array, shape (n_samples, n_assets)
             Generated portfolio weights
-        cvars : array, shape (n_samples,)
-            CVaR values for generated portfolios
         """
         n_assets = self.n_assets
 
@@ -436,14 +431,5 @@ class CVaRPortfolioSampler:
             if i >= burn_in:
                 samples.append(current_point.copy())
 
-        # Convert to numpy array
-        samples_array = np.array(samples)
-
-        # Calculate CVaRs in batches for efficiency
-        all_cvars = []
-        for i in range(0, len(samples), batch_size):
-            batch = samples_array[i : i + batch_size]
-            batch_cvars = self.calculate_cvar_batch(batch)
-            all_cvars.extend(batch_cvars)
-
-        return samples_array, np.array(all_cvars)
+        # Convert to numpy array and return
+        return np.array(samples)

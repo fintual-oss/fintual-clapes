@@ -30,14 +30,14 @@ SIMULATION_METHOD = "copula"  # "mvn" or "copula"
 ALPHA_CVAR = 0.90  # CVaR confidence level (0.90 = worst 10% tail)
 
 # Portfolio generation
-N_PORTFOLIOS_PER_MONTH = 1_000  # Number of portfolios to generate per month
-N_TRAJ = 10_000  # Number of Monte Carlo scenarios
+N_PORTFOLIOS_PER_MONTH = 100  # Number of portfolios to generate per month
+N_TRAJ = 100  # Number of Monte Carlo scenarios
 HORIZON_MONTHS = 420  # 40 years
 
 # Random seeds (for reproducibility)
-RETURNS_SEED = 42  # Seed for simulated returns
-HIT_RUN_SEED = 123  # Seed for Hit-and-Run algorithm
-SCENARIO_SEED = 999  # Seed for scenario selection per month
+RETURNS_SEED = 111  # Seed for simulated returns
+HIT_RUN_SEED = 222  # Seed for Hit-and-Run algorithm
+SCENARIO_SEED = 333  # Seed for scenario selection per month
 
 # Curve selection
 PROCESS_ALL_CURVES = True  # True = process all curves, False = only selected
@@ -196,7 +196,6 @@ def main() -> None:
         cvar_limits = glides_df[curve_name].values
 
         # Storage for results
-        cvar_matrix = np.zeros((HORIZON_MONTHS, N_PORTFOLIOS_PER_MONTH))
         returns_matrix = np.zeros((HORIZON_MONTHS, N_PORTFOLIOS_PER_MONTH))
 
         # Process each month
@@ -221,12 +220,11 @@ def main() -> None:
             np.random.seed(month_seed)  # Set seed for Hit-and-Run
 
             try:
-                # Generate N portfolios satisfying CVaR < target_cvar using batch method
-                portfolios, cvar_vals = sampler.generate_portfolios_batch(
+                # Generate N portfolios satisfying CVaR < target_cvar
+                portfolios = sampler.generate_portfolios_batch(
                     target_cvar=target_cvar,
                     n_samples=N_PORTFOLIOS_PER_MONTH,
-                    burn_in=50,
-                    batch_size=min(50, N_PORTFOLIOS_PER_MONTH),
+                    burn_in=20,
                 )
 
                 # Check if we got enough portfolios
@@ -236,8 +234,6 @@ def main() -> None:
                     )
                     # Fill remaining slots with NaN
                     n_generated = len(portfolios)
-                    cvar_matrix[t, :n_generated] = cvar_vals
-                    cvar_matrix[t, n_generated:] = np.nan
 
                     # Calculate returns for generated portfolios using single scenario
                     if n_generated > 0:
@@ -253,9 +249,6 @@ def main() -> None:
                         returns_matrix[t, :n_generated] = portfolio_returns
                         returns_matrix[t, n_generated:] = np.nan
                 else:
-                    # Store CVaR values (already calculated in batch)
-                    cvar_matrix[t, :] = cvar_vals[:N_PORTFOLIOS_PER_MONTH]
-
                     # Calculate returns for all portfolios using single scenario
                     # Get the scenario index for this month
                     scenario_idx = scenario_indices[t]
@@ -283,7 +276,6 @@ def main() -> None:
                 print(f"   ERROR at month {t+1}: {e}")
                 print(f"   Target CVaR: {target_cvar:.6f}")
                 # Fill with NaN for this month
-                cvar_matrix[t, :] = np.nan
                 returns_matrix[t, :] = np.nan
                 # Still update progress even on error
                 completed_months += 1
@@ -292,7 +284,6 @@ def main() -> None:
         output_file = output_hit_run_file(curve_name)
         export_curve_results(
             output_file=output_file,
-            cvar_matrix=cvar_matrix,
             returns_matrix=returns_matrix,
             n_portfolios=N_PORTFOLIOS_PER_MONTH,
         )
@@ -305,10 +296,11 @@ def main() -> None:
     print("\n" + "=" * 70)
     print("COMPLETED SUCCESSFULLY")
     print("=" * 70)
-    print("\nKEY MODIFICATION:")
-    print("  Each month uses ONE randomly selected scenario (not averaged)")
-    print(f"  All {N_PORTFOLIOS_PER_MONTH} portfolios in month t face the same market condition")
-    print(f"  This ensures comparability across portfolios within each month")
+    print("\nKEY FEATURES:")
+    print("  - Portfolios generated using Hit-and-Run algorithm")
+    print(f"  - Each month uses ONE randomly selected scenario")
+    print(f"  - All {N_PORTFOLIOS_PER_MONTH} portfolios in month t face the same market condition")
+    print(f"  - CVaR constraints satisfied during generation (not re-calculated)")
 
 
 if __name__ == "__main__":
