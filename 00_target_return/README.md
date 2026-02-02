@@ -12,7 +12,7 @@ The results from this module are used as reference benchmarks to calibrate the T
 - Demographic parameters (age, gender, life expectancy)
 - Economic parameters (salary, contribution rate, salary growth)
 - Contribution density (percentage of months with contributions)
-- Target replacement rate (for example: 60%)
+- Target replacement rate (for example: 63%)
 
 **Process:** 
 - For each demographic profile, use binary search to find the annual return that achieves the target replacement rate
@@ -34,6 +34,20 @@ The results from this module are used as reference benchmarks to calibrate the T
 1. Run this module to find required returns (e.g., 5.8% for male without gaps)
 2. Use that value as TARGET_RETURN_THRESHOLD in step 03
 3. Interpret step 03 results as: "X% of portfolio trajectories achieve the return needed for retirement in the Chilean pension system"
+
+## Replacement Rate Calculation Period
+
+The replacement rate can be calculated using different reference periods by editing `months_for_replacement_rate` in `parameters.py`:
+
+**Option 1: Last 12 months (`months_for_replacement_rate = 12`)**
+- Uses average salary from the final year before retirement
+- Results in lower required returns (easier target) since reference salary is at its peak
+
+**Option 2: Last 120 months (`months_for_replacement_rate = 120`)**
+- Uses average salary from the final 10 years before retirement
+- Results in higher required returns (harder target) since reference includes lower historical salaries
+
+**Default:** The model uses 120 months (last 10 years).
 
 ## File Structure
 
@@ -72,7 +86,7 @@ life_expectancy_female = 90   # Life expectancy for women
 salary_initial_male = 20.0     # Initial salary for men in UF (approx 800k CLP)
 salary_initial_female = 20.0   # Initial salary for women in UF (approx 800k CLP)
 contribution_rate = 0.16       # Mandatory contribution rate (16%)
-contribution_ceiling = 81.6    # Contribution ceiling in UF
+contribution_ceiling = 87.8    # Contribution ceiling in UF
 salary_growth_real = 0.0125    # Real annual salary growth (1.25%)
 ```
 
@@ -102,12 +116,20 @@ return_post_retirement = 0.025  # 2.5% real return after retirement
 ### Target Parameters
 
 ```python
-replacement_rate_target = 0.60  # 60% replacement rate
+replacement_rate_target = 0.63  # 63% replacement rate
+months_for_replacement_rate = 120  # 12 or 120 months
 ```
 
-**What it means:**
-- Replacement rate = Monthly pension / Average salary of last 10 working years
-- 60% means the pension is 60% of pre-retirement salary
+**What they mean:**
+- `replacement_rate_target`: Target pension as percentage of pre-retirement salary (60% = pension is 60% of salary)
+- `months_for_replacement_rate`: Period for calculating average pre-retirement salary
+  - `12`: Average of last 12 months (last year before retirement)
+  - `120`: Average of last 120 months (last 10 years before retirement)
+
+**Replacement rate formula:**
+```
+Replacement Rate = Monthly Pension / Average(Salaries from configured period)
+```
 
 ### Contribution Density
 
@@ -185,13 +207,18 @@ One row per demographic profile with key results.
 | `Achieved Replacement Rate (%)` | Actual replacement rate with that return | 60.00% |
 | `Final Accumulated Balance (UF)` | Total fund at retirement | 4,523.45 UF |
 | `Monthly Pension (UF)` | Monthly pension payment | 18.56 UF |
-| `Average Salary Last 10 Years (UF)` | Avg monthly salary before retirement | 30.93 UF |
+| `Average Salary Last X Months/Years (UF)` | Avg monthly salary from configured period | 30.93 UF |
 | `Effective Contribution Years` | Years actually contributing (years × density) | 40.0 years |
+
+**Note:** The "Average Salary" column name changes based on `months_for_replacement_rate`:
+- If set to `12`: Column is "Average Salary Last 12 Months (UF)"
+- If set to `120`: Column is "Average Salary Last 10 Years (UF)"
 
 **Interpretation:**
 - Required Return: This is the key output - use this value in step 03
 - Lower return = easier to achieve (less demanding on portfolio)
 - Effective Contribution Years = Total working years × Contribution density
+- Replacement Rate = Monthly Pension / Average Salary (from configured period)
 
 ### Sheets 3-6: "Male_without_gaps", "Male_with_gaps", etc.
 
@@ -282,11 +309,16 @@ monthly_return = (1 + annual_return)^(1/12) - 1
 balance = balance × (1 + monthly_return)
 ```
 
-**Step 5: Track Last 10 Years Salaries**
+**Step 5: Track Salaries for Replacement Rate**
 ```
-If age >= retirement_age - 10:
+months_to_collect = months_for_replacement_rate  # 12 or 120
+months_to_retirement = total_months - current_month
+
+If months_to_retirement <= months_to_collect:
     Save salary for replacement rate calculation
 ```
+
+This collects salaries from the last N months before retirement, where N is configured in parameters.
 
 ### Pension Calculation
 

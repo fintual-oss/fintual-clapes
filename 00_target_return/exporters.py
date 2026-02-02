@@ -74,16 +74,25 @@ class ResultsExporter:
             )
             
             # Get additional details with found return
-            _, salaries_12_months, detail = self.sim.simulate_accumulation(
+            _, salaries_for_replacement, detail = self.sim.simulate_accumulation(
                 profile['is_male'], profile['with_gaps'], req_return
             )
-            average_salary = np.mean(salaries_12_months)
+            average_salary = np.mean(salaries_for_replacement)
             
             # Calculate effective contribution years
             years_contributed = calculate_years_contributed(detail)
             
             # Get contribution density
             contribution_density = detail[0]['contribution_density'] if detail else 1.0
+            
+            # Determine label for average salary column
+            months = self.params.months_for_replacement_rate
+            if months == 12:
+                salary_label = 'Average Salary Last 12 Months (UF)'
+            elif months == 120:
+                salary_label = 'Average Salary Last 10 Years (UF)'
+            else:
+                salary_label = f'Average Salary Last {months} Months (UF)'
             
             # Save results
             results.append({
@@ -93,7 +102,7 @@ class ResultsExporter:
                 'Achieved Replacement Rate (%)': round(achieved_rate * 100, 2),
                 'Final Accumulated Balance (UF)': round(final_balance, 2),
                 'Monthly Pension (UF)': round(pension, 2),
-                'Average Salary Last 12 Months (UF)': round(average_salary, 2),
+                salary_label: round(average_salary, 2),
                 'Effective Contribution Years': round(years_contributed, 1),
                 'profile_obj': profile  # For internal use
             })
@@ -174,12 +183,12 @@ class ResultsExporter:
             
             for profile in profiles:
                 # Simulate with this return
-                balance, salaries_12_months, _ = self.sim.simulate_accumulation(
+                balance, salaries_for_replacement, _ = self.sim.simulate_accumulation(
                     profile['is_male'], profile['with_gaps'], ret
                 )
                 pension = self.sim.calculate_monthly_pension(balance, profile['is_male'])
                 replacement_rate, _ = self.sim.calculate_replacement_rate(
-                    pension, salaries_12_months
+                    pension, salaries_for_replacement
                 )
                 
                 row[f"{profile['name']} - Replacement Rate (%)"] = round(replacement_rate * 100, 2)
@@ -210,6 +219,7 @@ class ResultsExporter:
                 'Real annual salary growth',
                 'Return post-retirement',
                 'Target replacement rate',
+                'Months for replacement rate calculation',
                 'Contribution density male - no gaps',
                 'Contribution density male - with gaps',
                 'Contribution density female - no gaps',
@@ -229,6 +239,7 @@ class ResultsExporter:
                 f"{self.params.salary_growth_real * 100}%",
                 f"{self.params.return_post_retirement * 100}%",
                 f"{self.params.replacement_rate_target * 100}%",
+                self.params.months_for_replacement_rate,
                 f"{self.params.contribution_density_male_no_gaps * 100}%",
                 f"{self.params.contribution_density_male_with_gaps * 100}%",
                 f"{self.params.contribution_density_female_no_gaps * 100}%",

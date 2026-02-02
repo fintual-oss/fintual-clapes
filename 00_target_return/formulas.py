@@ -38,9 +38,9 @@ class PensionSimulator:
             annual_return (float): Annual real return during accumulation
         
         Returns:
-            tuple: (final_balance, list_salaries_last_12_months, monthly_detail)
+            tuple: (final_balance, list_salaries_for_replacement, monthly_detail)
                 - final_balance (float): Accumulated balance in UF at retirement
-                - salaries_last_12_months (list): List of monthly salaries of last 12 months in UF
+                - salaries_for_replacement (list): List of monthly salaries for replacement rate calculation
                 - monthly_detail (list): List of dictionaries with month-by-month information
         """
         # Determine parameters by gender
@@ -69,7 +69,10 @@ class PensionSimulator:
         
         # Lists to store information
         detail = []
-        salaries_last_12_months = []
+        salaries_for_replacement = []
+        
+        # Get number of months to collect for replacement rate
+        months_to_collect = self.params.months_for_replacement_rate
         
         # Month-by-month simulation
         for month in range(total_months):
@@ -88,10 +91,10 @@ class PensionSimulator:
             # Apply return to accumulated balance
             balance *= (1 + monthly_return)
             
-            # Save salaries from last 12 months (last year before retirement)
+            # Save salaries from last N months (for replacement rate calculation)
             months_to_retirement = total_months - month
-            if months_to_retirement <= 12:
-                salaries_last_12_months.append(salary_current)
+            if months_to_retirement <= months_to_collect:
+                salaries_for_replacement.append(salary_current)
             
             # Save monthly detail
             detail.append({
@@ -104,7 +107,7 @@ class PensionSimulator:
                 'balance_uf': round(balance, 2)
             })
         
-        return balance, salaries_last_12_months, detail
+        return balance, salaries_for_replacement, detail
     
     def calculate_monthly_pension(self, accumulated_balance, is_male):
         """
@@ -149,23 +152,23 @@ class PensionSimulator:
         
         return pension
     
-    def calculate_replacement_rate(self, pension, salaries_last_12_months):
+    def calculate_replacement_rate(self, pension, salaries_for_replacement):
         """
         Calculate the replacement rate as the ratio between pension and the average
-        of salaries from the last 12 months.
+        of salaries from the configured period (12 or 120 months).
         
-        Replacement Rate = Pension / Average(Salaries last 12 months)
+        Replacement Rate = Pension / Average(Salaries from configured period)
         
         Args:
             pension (float): Monthly pension in UF
-            salaries_last_12_months (list): List of monthly salaries from last 12 months in UF
+            salaries_for_replacement (list): List of monthly salaries for replacement calculation
         
         Returns:
             tuple: (replacement_rate, average_salary)
                 - replacement_rate (float): Pension/salary ratio
-                - average_salary (float): Average of salaries from last 12 months in UF
+                - average_salary (float): Average of salaries from configured period
         """
-        average_salary = np.mean(salaries_last_12_months)
+        average_salary = np.mean(salaries_for_replacement)
         replacement_rate = pension / average_salary
         return replacement_rate, average_salary
     
@@ -199,11 +202,11 @@ class PensionSimulator:
             return_median = (return_min + return_max) / 2
             
             # Simulate with median return
-            balance, salaries_12_months, _ = self.simulate_accumulation(
+            balance, salaries_for_replacement, _ = self.simulate_accumulation(
                 is_male, with_gaps, return_median
             )
             pension = self.calculate_monthly_pension(balance, is_male)
-            replacement_rate, _ = self.calculate_replacement_rate(pension, salaries_12_months)
+            replacement_rate, _ = self.calculate_replacement_rate(pension, salaries_for_replacement)
             
             # Check convergence
             difference = abs(replacement_rate - self.params.replacement_rate_target)
