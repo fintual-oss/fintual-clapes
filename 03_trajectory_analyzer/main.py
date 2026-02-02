@@ -22,19 +22,40 @@ from metrics import (
     calculate_percentiles
 )
 from exporters import export_analysis_to_excel
+from transformations import transform_trajectories, get_mode_description
 
 # ========================================
 # CONFIGURATION
 # ========================================
 
+# ----------------------------------------
+# ANALYSIS MODE (SELECT ONE)
+# ----------------------------------------
+# Mode 1: Analyze original trajectories only (no transformation)
+# Mode 2: Analyze sorted trajectories only (ranked by return per month)
+# Mode 3: Analyze permuted trajectories only (random permutation per month)
+# Mode 4: Analyze permuted + sorted trajectories
+#         This mode generates 2x trajectories: permuted + sorted
+# Mode 5: Analyze original + sorted trajectories
+#         This mode generates 2x trajectories: original + sorted
+# Mode 6: Analyze original + permuted trajectories
+#         This mode generates 2x trajectories: original + permuted
+# Mode 7: Analyze original + sorted + permuted trajectories
+#         This mode generates 3x trajectories: original + sorted + permuted
+ANALYSIS_MODE = 3  # OPTIONS: 1, 2, 3, 4, 5, 6, or 7
+
+# Random seed for permutation (only used in modes 3, 4, 6, and 7)
+# Set to None for different results each run, or set an integer for reproducibility
+RANDOM_SEED = 42
+
 # Target return threshold (annualized)
-TARGET_RETURN_THRESHOLD = 0.0855
+TARGET_RETURN_THRESHOLD = 0.055
 
 # Percentiles to calculate
 PERCENTILES = [10, 25, 50, 75, 90]
 
 # Process all available curves or specific ones
-PROCESS_ALL_CURVES =True  # True = all available, False = only selected
+PROCESS_ALL_CURVES = True  # True = all available, False = only selected
 CURVES_TO_ANALYZE = [
     "curve_0001",
     "curve_0002"
@@ -49,18 +70,30 @@ def main() -> None:
     Analyze trajectory results from step 02 and generate Excel report.
 
     For each curve:
-    1. Load trajectory data (returns and CVaR)
-    2. Calculate cumulative annualized returns
-    3. Calculate statistics and percentiles
-    4. Calculate cumulative risk from CVaR limits (step 01)
-    5. Combine with curve parameters
-    6. Export Excel with 1 sheet:
+    1. Load trajectory data (returns)
+    2. Apply transformation based on ANALYSIS_MODE:
+       - Mode 1: Use original trajectories
+       - Mode 2: Generate sorted trajectories (ranked by return per month)
+       - Mode 3: Generate permuted trajectories (random permutation per month)
+       - Mode 4: Generate permuted + sorted trajectories
+       - Mode 5: Generate original + sorted trajectories
+       - Mode 6: Generate original + permuted trajectories
+       - Mode 7: Generate original + sorted + permuted trajectories
+    3. Calculate cumulative annualized returns
+    4. Calculate statistics and percentiles
+    5. Calculate cumulative risk from CVaR limits (step 01)
+    6. Combine with curve parameters
+    7. Export Excel with 1 sheet:
        - results: Summary of all curves with statistics and cumulative risk
     """
 
     print("=" * 70)
     print("TRAJECTORY ANALYSIS - PORTFOLIO PERFORMANCE")
     print("=" * 70)
+    print(f"Analysis mode: {ANALYSIS_MODE}")
+    print(f"  {get_mode_description(ANALYSIS_MODE)}")
+    if ANALYSIS_MODE in [3, 4, 6, 7]:
+        print(f"  Random seed: {RANDOM_SEED}")
     print(f"Target return threshold: {TARGET_RETURN_THRESHOLD*100:.1f}%")
     print(f"Percentiles: {PERCENTILES}")
     print("=" * 70)
@@ -117,20 +150,34 @@ def main() -> None:
         print(f"\n[Curve {curve_idx}/{len(curves_to_analyze)}] {curve_name}")
 
         try:
-            # Load trajectory data (returns and CVaR)
-            returns_df, cvar_df, metadata = load_trajectory_results(
+            # Load trajectory data (returns)
+            returns_df, metadata = load_trajectory_results(
                 input_hit_run_dir(),
                 curve_name
             )
 
-            n_months = returns_df.shape[0]
-            n_trajectories = returns_df.shape[1]
+            n_months_original = returns_df.shape[0]
+            n_trajectories_original = returns_df.shape[1]
 
-            print(f"   Data: {n_months} months × {n_trajectories} trajectories")
+            print(f"   Loaded: {n_months_original} months × {n_trajectories_original} trajectories")
+
+            # ============================================
+            # Apply transformation based on ANALYSIS_MODE
+            # ============================================
+            transformed_df, transformation_desc = transform_trajectories(
+                returns_df=returns_df,
+                mode=ANALYSIS_MODE,
+                random_seed=RANDOM_SEED
+            )
+
+            n_months = transformed_df.shape[0]
+            n_trajectories = transformed_df.shape[1]
+
+            print(f"   Transformed: {transformation_desc}")
 
             # Calculate cumulative annualized returns
             cumulative_returns = calculate_cumulative_return_annualized(
-                returns_df.values
+                transformed_df.values
             )
 
             # Calculate summary statistics
@@ -176,7 +223,8 @@ def main() -> None:
                 **curve_params,
                 'n_trajectories': n_trajectories,
                 'horizon_months': n_months,
-                'cumulative_risk': cumulative_risk,  # NEW: Risk from step 01 curve
+                'analysis_mode': ANALYSIS_MODE,
+                'cumulative_risk': cumulative_risk,
                 **return_stats,
                 **return_percentiles
             }
@@ -185,12 +233,14 @@ def main() -> None:
 
             print(f"   ✓ Analysis complete")
             print(f"      Return (annualized mean): {return_stats['return_mean']*100:.2f}%")
-            print(f"      Trajectories > {TARGET_RETURN_THRESHOLD*100:.0f}%: "
-                  f"{return_stats['pct_above_target']*100:.1f}%")
+            print(f"      Trajectories > {TARGET_RETURN_THRESHOLD*100:.2f}%: "
+                  f"{return_stats['pct_above_target']*100:.2f}%")
             print(f"      Cumulative risk (area under curve): {cumulative_risk:.4f}")
 
         except Exception as e:
             print(f"⚠ Error analyzing {curve_name}: {e}")
+            import traceback
+            traceback.print_exc()
             continue
 
     # ----------------------------------------
@@ -233,8 +283,9 @@ def main() -> None:
     print("\n" + "=" * 70)
     print("ANALYSIS SUMMARY")
     print("=" * 70)
+    print(f"Analysis mode: {ANALYSIS_MODE} - {get_mode_description(ANALYSIS_MODE)}")
     print(f"Curves analyzed: {len(results_df)}")
-    print(f"Target return: {TARGET_RETURN_THRESHOLD*100:.1f}%")
+    print(f"Target return: {TARGET_RETURN_THRESHOLD*100:.2f}%")
 
     if len(results_df) > 0:
         best_curve = results_df.iloc[0]
