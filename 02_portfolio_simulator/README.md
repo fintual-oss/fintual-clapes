@@ -15,7 +15,7 @@ The key innovation is the Hit-and-Run algorithm, which efficiently samples portf
 **Process:** 
 - Simulate future market scenarios
 - For each month and each glidepath, generate N different portfolios where CVaR < limit
-- Calculate returns for each portfolio using a single randomly selected scenario per month
+- Calculate returns for each portfolio using selected scenario(s) based on USE_RANDOM_SCENARIOS mode
 - Build complete trajectories by connecting portfolios across months
 
 **Output:** 
@@ -94,7 +94,8 @@ HORIZON_MONTHS = 480             # Total months in simulation
 **N_TRAJ:**
 - Number of Monte Carlo scenarios used during portfolio generation
 - More scenarios = more accurate CVaR constraint enforcement
-- Must be at least 100 for reasonable accuracy
+- Minimum recommended: 100 scenarios, but ideally 1000+ for stable results
+- With ALPHA_CVAR=0.90 (worst 10%), you need enough scenarios so that 10% gives at least 10 observations
 - Default: 10,000 scenarios
 
 **HORIZON_MONTHS:**
@@ -104,12 +105,43 @@ HORIZON_MONTHS = 480             # Total months in simulation
 - Example: (65 - 25) × 12 = 480 months = 40 years
 - **CRITICAL:** This must equal the MONTHS value from step 01 config
 
+**Important:** The code does not automatically validate this. You must manually ensure:
+- Step 01: MONTHS = (T_END_YEARS - T_START_YEARS) × 12
+- Step 02: HORIZON_MONTHS = same value
+
+**Example:** If step 01 uses ages 25-65 (40 years = 480 months), then HORIZON_MONTHS must be 480.
+
+### Scenario Selection Mode
+
+```python
+USE_RANDOM_SCENARIOS = False  # Scenario assignment mode
+```
+
+**Options:**
+
+**USE_RANDOM_SCENARIOS = False (Default - Fixed Scenario Mode):**
+- All portfolios in month t use the same randomly selected scenario
+- All curves share the same month-to-month scenario sequence
+- Controlled by SCENARIO_SEED for reproducibility
+- Ensures fair comparison: all portfolios face identical market conditions
+
+**USE_RANDOM_SCENARIOS = True (Random Scenario Mode):**
+- Each portfolio in month t uses a different randomly selected scenario
+- Each curve has its own independent random scenario sequence
+- Controlled by RANDOM_SCENARIO_SEED for reproducibility
+- Maximizes scenario diversity across portfolios and curves
+
+**Which mode to use:**
+- Fixed mode: When comparing portfolio strategies under identical market conditions
+- Random mode: When maximizing exploration of different market realizations
+
 ### Random Seeds
 
 ```python
-RETURNS_SEED = 111      # Seed for asset return simulation
-HIT_RUN_SEED = 222      # Seed for Hit-and-Run algorithm
-SCENARIO_SEED = 333     # Seed for scenario selection per month
+RETURNS_SEED = 111           # Seed for asset return simulation
+HIT_RUN_SEED = 222           # Seed for Hit-and-Run algorithm
+SCENARIO_SEED = 333          # Seed for fixed scenario mode
+RANDOM_SCENARIO_SEED = 444   # Seed for random scenario mode
 ```
 
 **What they mean:** These control the random number generation to make results reproducible.
@@ -123,14 +155,51 @@ SCENARIO_SEED = 333     # Seed for scenario selection per month
 - Same seed = identical portfolios generated
 
 **SCENARIO_SEED:**
+- Only used when USE_RANDOM_SCENARIOS = False
 - Controls which scenario is selected for each month
 - Same seed = identical market realizations each month
+- All curves share the same month-to-month scenario sequence
 
-**Why three separate seeds?**
+**RANDOM_SCENARIO_SEED:**
+- Only used when USE_RANDOM_SCENARIOS = True
+- Controls the random scenario assignment for each portfolio
+- Same seed = identical random scenario assignments
+- Each curve gets a different but reproducible scenario sequence
+
+**Why separate seeds?**
 - Allows you to test different aspects independently
-- Example: Keep RETURNS_SEED and SCENARIO_SEED fixed, change HIT_RUN_SEED to test different portfolio strategies under the same market conditions
+- Example: Keep RETURNS_SEED fixed, change HIT_RUN_SEED to test different portfolio strategies under the same market scenarios
+- Example: Keep RETURNS_SEED and HIT_RUN_SEED fixed, change RANDOM_SCENARIO_SEED to test different market realization patterns
 
-**Reproducibility:** Using the same three seeds will produce exactly the same results every time.
+**Reproducibility:** Using the same seeds will produce exactly the same results every time.
+
+### Parallelization Configuration
+
+```python
+N_PROCESSES = 15  # Number of parallel processes
+```
+
+**What it means:** Controls how many months are processed simultaneously within each curve.
+
+**Options:**
+- `None` or `"auto"`: Uses all available CPU cores minus 1 (recommended)
+- Integer (e.g., 1, 4, 8, 15): Uses exactly that many processes
+- `1`: Disables parallelization (sequential month processing)
+
+**How it works:**
+- Curves are processed sequentially (one at a time)
+- Within each curve, months are processed in parallel
+- This is efficient because months are independent within a curve
+
+**Memory consideration:**
+- Each parallel process loads the month's return scenarios (N_TRAJ × N_ASSETS)
+- More processes = more memory needed
+- Generally safe with "auto" for typical workloads
+
+**Example:** With N_PROCESSES=15 and HORIZON_MONTHS=480:
+- Process 15 months simultaneously
+- Complete all 480 months in 32 batches (480/15)
+- Much faster than sequential processing
 
 ### Curve Selection
 
@@ -204,7 +273,11 @@ trajectory_003  0.0063   0.0062   0.0064  ...    0.0044
 
 **Why transposed?** Excel has a limit of 16,384 columns. By putting trajectories in rows and months in columns, we can simulate millions of trajectories (Excel supports 1,048,576 rows) while keeping months (typically 480) well within the column limit.
 
-**Important:** These returns use a single randomly selected scenario per month (not averaged over all scenarios). All portfolios in a given month face the same market condition.
+**Important:** Return calculation depends on USE_RANDOM_SCENARIOS:
+- Fixed mode: All portfolios in a given month face the same market condition
+- Random mode: Each portfolio faces a different market condition
+
+In both modes, CVaR constraints are enforced using all N_TRAJ scenarios during portfolio generation.
 
 ## How It Works
 
@@ -221,10 +294,17 @@ For each glidepath curve, the simulation follows these steps:
 - This creates a 3D array: (HORIZON_MONTHS × N_TRAJ × N_ASSETS)
 - Example shape: (480 × 10000 × 9) for 480 months, 10000 scenarios, 9 assets
 
-**Step 3: Generate Scenario Selection**
-- For each month, randomly select one scenario index (0 to N_TRAJ-1)
-- This scenario will be used to calculate returns for all portfolios in that month
-- Controlled by SCENARIO_SEED for reproducibility
+**Step 3: Generate Scenario Selection (Fixed Scenario Mode Only)**
+- If USE_RANDOM_SCENARIOS = False:
+  - For each month, randomly select one scenario index (0 to N_TRAJ-1)
+  - This scenario will be used to calculate returns for all portfolios in that month
+  - Controlled by SCENARIO_SEED for reproducibility
+  - All curves share the same month-to-month scenario sequence
+- If USE_RANDOM_SCENARIOS = True:
+  - No pre-selection needed
+  - Each portfolio will be assigned a random scenario during processing
+  - Controlled by RANDOM_SCENARIO_SEED for reproducibility
+  - Each curve gets its own independent scenario sequence
 
 **Step 4: Generate Portfolios Month by Month**
 
@@ -233,7 +313,9 @@ For each month t:
 1. Get the CVaR limit for month t from the glidepath
 2. Get the simulated returns for month t (all N_TRAJ scenarios)
 3. Use Hit-and-Run algorithm to generate N_PORTFOLIOS_PER_MONTH portfolios where CVaR < limit
-4. Calculate each portfolio's return using the single selected scenario for month t
+4. Calculate each portfolio's return based on scenario selection mode:
+   - Fixed mode: All portfolios use the single pre-selected scenario for month t
+   - Random mode: Each portfolio uses its own randomly assigned scenario
 5. Store the return values
 
 **Step 5: Build Trajectories**
@@ -243,9 +325,13 @@ For each month t:
 **Step 6: Export to Excel**
 - Save returns matrix (N_PORTFOLIOS_PER_MONTH × HORIZON_MONTHS) in transposed format
 
-### Key Feature: Single Scenario per Month
+### Scenario Selection Modes
 
-Each month uses a single randomly selected scenario instead of averaging over all scenarios.
+The module supports two modes for assigning market scenarios to portfolios when calculating returns.
+
+#### Fixed Scenario Mode (USE_RANDOM_SCENARIOS = False)
+
+Each month uses a single randomly selected scenario for all portfolios.
 
 **How it works:**
 
@@ -253,18 +339,62 @@ Each month uses a single randomly selected scenario instead of averaging over al
 # For each month t:
 scenario_idx = scenario_indices[t]  # Random index (0 to N_TRAJ-1)
 selected_scenario_returns = month_returns[scenario_idx, :]  # One scenario
-portfolio_returns = portfolios @ selected_scenario_returns  # Calculate returns
+portfolio_returns = portfolios @ selected_scenario_returns  # All portfolios use same scenario
 ```
 
-**Why use a single scenario?**
+**Characteristics:**
+- All portfolios in month t face the same market condition
+- All curves share the same month-to-month scenario sequence
+- Pre-selected scenarios are generated once using SCENARIO_SEED
 
-1. **Fair comparison:** All portfolios in month t face the same market condition. Portfolio A didn't get lucky with good scenarios while Portfolio B got unlucky.
+**Advantages:**
 
-2. **Comparable trajectories:** You can directly compare trajectory performance because they all experienced the same market path.
+1. **Fair comparison:** Portfolio A and Portfolio B face identical market conditions. No portfolio gets lucky or unlucky with random scenario assignment.
+
+2. **Comparable trajectories:** Direct performance comparison is meaningful because all trajectories experienced the same market path.
 
 3. **Reproducible:** Using the same SCENARIO_SEED gives the same market realizations every time.
 
-**Note:** CVaR constraint enforcement uses all N_TRAJ scenarios during the Hit-and-Run generation process. Only the final returns use a single scenario.
+**Use when:** Comparing portfolio strategies under identical market conditions.
+
+#### Random Scenario Mode (USE_RANDOM_SCENARIOS = True)
+
+Each portfolio uses a different randomly selected scenario.
+
+**How it works:**
+
+```python
+# For each month t and each portfolio i:
+random_scenario_idx = random_integers(0, N_TRAJ-1)  # Different for each portfolio
+selected_scenario_returns = month_returns[random_scenario_idx, :]
+portfolio_returns[i] = portfolio[i] @ selected_scenario_returns
+```
+
+**Characteristics:**
+- Each portfolio in month t faces a different market condition
+- Each curve has its own independent random scenario sequence
+- Scenarios are generated on-the-fly using curve-specific and month-specific seeds
+
+**Advantages:**
+
+1. **Maximum diversity:** Explores N_PORTFOLIOS_PER_MONTH different market realizations per month.
+
+2. **Independent curves:** Each curve experiences different market paths, avoiding systematic bias.
+
+3. **Reproducible:** Using the same RANDOM_SCENARIO_SEED gives the same random assignments every time.
+
+**Use when:** Maximizing exploration of different market realizations across portfolios and curves.
+
+#### Comparison
+
+| Aspect | Fixed Mode | Random Mode |
+|--------|-----------|-------------|
+| Portfolios per month | Same scenario | Different scenarios |
+| Curves | Share scenario sequence | Independent scenario sequences |
+| Total scenario usage | HORIZON_MONTHS scenarios | N_PORTFOLIOS × HORIZON_MONTHS scenarios per curve |
+| Best for | Strategy comparison | Maximum diversity |
+
+**Note:** CVaR constraint enforcement uses all N_TRAJ scenarios during the Hit-and-Run generation process in both modes. The scenario selection mode only affects the final return calculation.
 
 ### Hit-and-Run Algorithm
 
@@ -285,7 +415,7 @@ The Hit-and-Run algorithm efficiently generates random portfolios that satisfy t
    - Pick a random point along that line segment
    - Move to that new portfolio
 
-3. **Burn-in period:** Discard the first 50 portfolios to ensure we're sampling from the entire feasible region
+3. **Burn-in period:** Discard the first 20 portfolios to ensure we're sampling from the entire feasible region
 
 4. **Collect samples:** Keep the next N_PORTFOLIOS_PER_MONTH portfolios
 
@@ -293,17 +423,26 @@ The Hit-and-Run algorithm efficiently generates random portfolios that satisfy t
 
 ### CVaR Calculation (During Generation)
 
+CVaR (Conditional Value at Risk) measures the average loss in the worst-case scenarios.
+
 For a portfolio with weights w, CVaR is calculated as:
 
 1. Calculate portfolio returns for all N_TRAJ scenarios: r_p = R · w
 2. Convert returns to losses: L = -r_p
 3. Find the worst α tail (e.g., worst 10% if α=0.90)
-4. CVaR = average of the losses in that tail
+4. CVaR = average of the losses in that tail (reported as positive magnitude)
 
 **Example with α=0.90 and N_TRAJ=10000:**
-- Sort the 10000 portfolio returns from worst to best
-- Take the worst 1000 scenarios (bottom 10%)
-- CVaR = average loss in those 1000 worst scenarios
+- Calculate 10000 portfolio returns
+- Convert to losses (multiply by -1)
+- Sort losses from largest to smallest
+- Take the worst 1000 scenarios (top 10% largest losses)
+- CVaR = average of those 1000 worst losses
+
+**Important:** CVaR is reported as a positive value representing the magnitude of the average loss in the tail. For example:
+- CVaR = 0.07 means "average loss in worst 10% scenarios is 7%"
+- Target CVaR = 0.08 means "allow up to 8% average loss"
+- Constraint CVaR < target_cvar compares magnitudes: 0.07 < 0.08 ✓
 
 ### Asset Return Simulation Methods
 
