@@ -102,11 +102,10 @@ def generate_portfolios_with_weights(
         
         try:
             # Generate portfolios
-            portfolios, _ = sampler.generate_portfolios_batch(
+            portfolios = sampler.generate_portfolios_batch(
                 target_cvar=target_cvar,
                 n_samples=n_portfolios,
-                burn_in=50,
-                batch_size=min(50, n_portfolios),
+                burn_in=20,
             )
             
             # Store weights

@@ -78,18 +78,21 @@ N_PORTFOLIOS_TO_ANALYZE = 1000
 ### Random Seeds (CRITICAL)
 
 ```python
-RETURNS_SEED = 42       # Must match 02_portfolio_simulator
-HIT_RUN_SEED = 123      # Must match 02_portfolio_simulator
-SCENARIO_SEED = 999     # Must match 02_portfolio_simulator
+RETURNS_SEED = 111      # Must match 02_portfolio_simulator
+HIT_RUN_SEED = 222      # Must match 02_portfolio_simulator
+SCENARIO_SEED = 333     # Must match 02_portfolio_simulator
 ```
 
-**WARNING:** These seeds MUST be identical to those in `02_portfolio_simulator/main.py`.
+**CRITICAL:** These seeds MUST be identical to those in `02_portfolio_simulator/main.py`.
 
 **Why this matters:**
 - Same seeds = analyzing the EXACT portfolios used in step 02
 - Different seeds = analyzing different portfolios (not useful)
 
-**How to verify:** Open `02_portfolio_simulator/main.py` and check that RETURNS_SEED, HIT_RUN_SEED, and SCENARIO_SEED match exactly.
+**How to set these values:** 
+1. Open `02_portfolio_simulator/main.py`
+2. Find the values for RETURNS_SEED, HIT_RUN_SEED, and SCENARIO_SEED
+3. Copy those exact values to `test_config.py` in this module
 
 ### Simulation Parameters (Must Match Step 02)
 

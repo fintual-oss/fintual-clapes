@@ -23,9 +23,9 @@ N_PORTFOLIOS_TO_ANALYZE = 1_000  # Options: 100, 500, 1000
 # ----------------------------------------
 # CRITICAL: These seeds MUST be the same as in 02_portfolio_simulator/main.py
 # to ensure we're analyzing the exact same portfolios
-RETURNS_SEED = 42       # Seed for asset return simulation
-HIT_RUN_SEED = 123      # Seed for Hit-and-Run algorithm
-SCENARIO_SEED = 999     # Seed for scenario selection per month
+RETURNS_SEED = 111      # Seed for asset return simulation
+HIT_RUN_SEED = 222      # Seed for Hit-and-Run algorithm
+SCENARIO_SEED = 333     # Seed for scenario selection per month
 
 # ----------------------------------------
 # Simulation Parameters (MUST MATCH step 02)
