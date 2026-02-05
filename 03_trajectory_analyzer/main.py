@@ -94,7 +94,7 @@ def main() -> None:
     print(f"  {get_mode_description(ANALYSIS_MODE)}")
     if ANALYSIS_MODE in [3, 4, 6, 7]:
         print(f"  Random seed: {RANDOM_SEED}")
-    print(f"Target return threshold: {TARGET_RETURN_THRESHOLD*100:.1f}%")
+    print(f"Target return threshold: {TARGET_RETURN_THRESHOLD*100:.2f}%")
     print(f"Percentiles: {PERCENTILES}")
     print("=" * 70)
 

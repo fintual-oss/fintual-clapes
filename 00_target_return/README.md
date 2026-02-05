@@ -2,7 +2,7 @@
 
 ## Overview
 
-This module calculates the required investment return needed to achieve a target pension replacement rate in the Chilean pension system (AFP). It simulates different demographic profiles (men, women, with and without contribution density reductions) to find what annual return is necessary to retire with a pension equal to, for example, 60% of pre-retirement salary.
+This module calculates the required investment return needed to achieve a target pension replacement rate in the Chilean pension system (AFP). It simulates different demographic profiles (men, women, with and without contribution density reductions) to find what annual return is necessary to retire with a pension equal to 63% of pre-retirement salary.
 
 The results from this module are used as reference benchmarks to calibrate the TARGET_RETURN_THRESHOLD in step 03 (trajectory_analyzer). This creates a connection between theoretical pension planning and actual portfolio performance analysis.
 
@@ -12,7 +12,7 @@ The results from this module are used as reference benchmarks to calibrate the T
 - Demographic parameters (age, gender, life expectancy)
 - Economic parameters (salary, contribution rate, salary growth)
 - Contribution density (percentage of months with contributions)
-- Target replacement rate (for example: 63%)
+- Target replacement rate (63% by default)
 
 **Process:** 
 - For each demographic profile, use binary search to find the annual return that achieves the target replacement rate
@@ -86,14 +86,14 @@ life_expectancy_female = 90   # Life expectancy for women
 salary_initial_male = 20.0     # Initial salary for men in UF (approx 800k CLP)
 salary_initial_female = 20.0   # Initial salary for women in UF (approx 800k CLP)
 contribution_rate = 0.16       # Mandatory contribution rate (16%)
-contribution_ceiling = 87.8    # Contribution ceiling in UF
+contribution_ceiling = 87.8    # Contribution ceiling in UF (official value)
 salary_growth_real = 0.0125    # Real annual salary growth (1.25%)
 ```
 
 **What they mean:**
 - `salary_initial_male/female`: Starting monthly salary in UF (Chilean inflation-indexed units), can be different by gender
 - `contribution_rate`: Percentage of salary contributed to pension fund (16% in Chile)
-- `contribution_ceiling`: Maximum salary subject to contributions (81.6 UF = official Chilean limit)
+- `contribution_ceiling`: Maximum salary subject to contributions (87.8 UF = official value used in model)
 - `salary_growth_real`: Real salary growth per year (after inflation, in UF terms) - **applies to everyone regardless of contribution density**
 
 **Why UF?**
@@ -121,7 +121,7 @@ months_for_replacement_rate = 120  # 12 or 120 months
 ```
 
 **What they mean:**
-- `replacement_rate_target`: Target pension as percentage of pre-retirement salary (60% = pension is 60% of salary)
+- `replacement_rate_target`: Target pension as percentage of pre-retirement salary (63% = pension is 63% of salary)
 - `months_for_replacement_rate`: Period for calculating average pre-retirement salary
   - `12`: Average of last 12 months (last year before retirement)
   - `120`: Average of last 120 months (last 10 years before retirement)
@@ -136,7 +136,7 @@ Replacement Rate = Monthly Pension / Average(Salaries from configured period)
 ```python
 # Contribution density: percentage of months with contributions
 # 1.0 = contributes every month (100%)
-# 0.7 = contributes 70% of the time (simulates gaps)
+# 0.583 = contributes 58.3% of the time (simulates gaps)
 
 contribution_density_male_no_gaps = 1.0       # 100% - no gaps
 contribution_density_male_with_gaps = 0.583   # 58.3% - with gaps
@@ -147,10 +147,13 @@ contribution_density_female_with_gaps = 0.496 # 49.6% - with gaps
 
 **What they mean:**
 - Contribution density simulates labor market participation and gaps distributed throughout the working life
-- Instead of modeling discrete unemployment periods, this represents an **average contribution rate**
+- Instead of modeling discrete unemployment periods, this represents an **average contribution rate applied uniformly to each month**
+- The density factor is multiplied by the base contribution amount each month: `contribution_effective = contribution_base × contribution_density`
 - Examples:
   - `1.0` (100%): Person contributes every single month
   - `0.583` (58.3%): Person contributes 58.3% of months on average (e.g., informal work, unemployment spells)
+
+**Important note:** Salary growth is applied independently of contribution density. A person with 58.3% density still experiences full salary growth over their career.
 
 ### Binary Search Parameters
 
@@ -204,7 +207,7 @@ One row per demographic profile with key results.
 | `Profile` | Demographic profile description | Male without gaps |
 | `Contribution Density (%)` | Percentage of months contributing | 100.0% |
 | `Required Return (%)` | Annual return needed to achieve target | 5.82% |
-| `Achieved Replacement Rate (%)` | Actual replacement rate with that return | 60.00% |
+| `Achieved Replacement Rate (%)` | Actual replacement rate with that return | 63.00% |
 | `Final Accumulated Balance (UF)` | Total fund at retirement | 4,523.45 UF |
 | `Monthly Pension (UF)` | Monthly pension payment | 18.56 UF |
 | `Average Salary Last X Months/Years (UF)` | Avg monthly salary from configured period | 30.93 UF |
@@ -233,7 +236,7 @@ Monthly detail of the accumulation phase for each profile.
 | `age` | Age in years (25.00, 25.08, ..., 64.92) |
 | `salary_uf` | Monthly salary in UF |
 | `contribution_base_uf` | Base contribution before density (16% of salary, capped) |
-| `contribution_density` | Contribution density factor (1.0, 0.7, 0.6, etc.) |
+| `contribution_density` | Contribution density factor (1.0, 0.583, 0.496, etc.) |
 | `contribution_effective_uf` | Actual contribution (base × density) |
 | `balance_uf` | Accumulated balance in UF |
 
@@ -262,7 +265,7 @@ For each iteration:
 2. Simulate accumulation phase with that return
 3. Calculate pension with accumulated balance
 4. Calculate replacement rate
-5. Compare to target (60%):
+5. Compare to target (63%):
    - If too low: need higher return → `return_min = return_test`
    - If too high: need lower return → `return_max = return_test`
 6. Repeat until convergence (replacement rate within 0.01% of target)
@@ -296,7 +299,7 @@ Note: Salary ALWAYS grows, regardless of contribution density
 taxable_salary = min(salary, contribution_ceiling)
 contribution_base = taxable_salary × contribution_rate
 
-# Apply density
+# Apply density uniformly each month
 contribution_effective = contribution_base × contribution_density
 
 # Add to balance
@@ -355,6 +358,19 @@ Solving for PMT:
 ```
 PMT = PV × [r(1+r)^n] / [(1+r)^n - 1]
 ```
+
+## Class Methods Reference
+
+### PensionParameters Class
+
+The `PensionParameters` class includes a `__repr__` method for convenient display of all configured parameters:
+
+```python
+parameters = PensionParameters()
+print(parameters)  # Displays all parameters in readable format
+```
+
+This method outputs all demographic, economic, and simulation parameters for verification purposes.
 
 ## Next Steps
 

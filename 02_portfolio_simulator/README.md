@@ -80,7 +80,7 @@ ALPHA_CVAR = 0.90  # CVaR confidence level
 ```python
 N_PORTFOLIOS_PER_MONTH = 10_000  # Number of portfolios per month
 N_TRAJ = 10_000                  # Monte Carlo scenarios
-HORIZON_MONTHS = 480             # Total months in simulation
+HORIZON_MONTHS = 420             # Total months in simulation (35 years)
 ```
 
 **What they mean:**
@@ -102,14 +102,16 @@ HORIZON_MONTHS = 480             # Total months in simulation
 - Total number of months in the investment horizon
 - Must match the number of months in step 01
 - Formula: (T_END_YEARS - T_START_YEARS) × 12
-- Example: (65 - 25) × 12 = 480 months = 40 years
+- Current configuration: (60 - 25) × 12 = 420 months = 35 years (female retirement age)
 - **CRITICAL:** This must equal the MONTHS value from step 01 config
 
 **Important:** The code does not automatically validate this. You must manually ensure:
 - Step 01: MONTHS = (T_END_YEARS - T_START_YEARS) × 12
 - Step 02: HORIZON_MONTHS = same value
 
-**Example:** If step 01 uses ages 25-65 (40 years = 480 months), then HORIZON_MONTHS must be 480.
+**Example:** If step 01 uses ages 25-60 (35 years = 420 months), then HORIZON_MONTHS must be 420.
+
+**Note on gender configuration:** Current configuration uses female retirement age (60 years, 420 months total). For male profiles with retirement at 65, HORIZON_MONTHS would be 480 (40 years × 12 months).
 
 ### Scenario Selection Mode
 
@@ -196,33 +198,29 @@ N_PROCESSES = 15  # Number of parallel processes
 - More processes = more memory needed
 - Generally safe with "auto" for typical workloads
 
-**Example:** With N_PROCESSES=15 and HORIZON_MONTHS=480:
+**Example:** With N_PROCESSES=15 and HORIZON_MONTHS=420:
 - Process 15 months simultaneously
-- Complete all 480 months in 32 batches (480/15)
+- Complete all 420 months in 28 batches (420/15)
 - Much faster than sequential processing
 
 ### Curve Selection
 
 ```python
-PROCESS_ALL_CURVES = True  # Process all curves or selected subset
-
-CURVES_TO_PROCESS = [      # Only used if PROCESS_ALL_CURVES = False
-    "curve_0001",
-    "curve_0002",
-    "curve_0003"
-]
+PROCESS_ALL_CURVES = True  # Process all curves or only selected ones
+CURVES_TO_PROCESS = ["curve_0001", "curve_0002"]  # Used if PROCESS_ALL_CURVES=False
 ```
 
-**What it means:**
+**PROCESS_ALL_CURVES:**
+- `True`: Process every curve from step 01
+- `False`: Only process curves listed in CURVES_TO_PROCESS
 
-**PROCESS_ALL_CURVES = True:**
-- Process every curve from step 01
-- Use this for complete analysis
+**CURVES_TO_PROCESS:**
+- Only used when PROCESS_ALL_CURVES = False
+- List of curve names to process (must match names from step 01)
 
-**PROCESS_ALL_CURVES = False:**
-- Process only the curves listed in CURVES_TO_PROCESS
-- Use this for testing or analyzing specific glidepaths
-- Faster when you only want to test a few curves
+**Use cases:**
+- Set PROCESS_ALL_CURVES = True for full analysis
+- Set PROCESS_ALL_CURVES = False for testing or debugging specific curves
 
 ## How to Run
 
@@ -236,80 +234,64 @@ Or, if you are inside the `02_portfolio_simulator/` directory:
 python main.py
 ```
 
-### Prerequisites
-
-Before running, ensure these files exist:
-
-1. `returns.csv` at the repository root (historical asset returns)
-2. `outputs/glidepaths_universe.xlsx` (from step 01)
-
 ## Output Files
 
 **Location:** `outputs/hit_run_results/`
 
-**Files:** One Excel file per curve: `curve_XXXX_results.xlsx`
+**Files:** One Excel file per glidepath curve: `curve_XXXX_results.xlsx`
 
-**Structure:** Each Excel file contains 1 sheet:
+**Structure:** Each file has one sheet named "returns":
 
-### Sheet: "returns"
+**Format (TRANSPOSED for large simulations):**
+- **Rows:** Trajectories (trajectory_001, trajectory_002, ..., trajectory_N)
+- **Columns:** Months (Month_1, Month_2, ..., Month_420)
 
-Monthly returns for each trajectory.
+**Why transposed?**
+- Excel has a 16,384 column limit but over 1 million row limit
+- With standard orientation (months as rows): Limited to ~16,000 trajectories
+- With transposed orientation (months as columns): Can store millions of trajectories
+- This format allows simulating 100,000+ trajectories without hitting Excel limits
 
-**Format (IMPORTANT - matrix is transposed for Excel compatibility):**
-- **Rows:** Trajectories (trajectory_001, trajectory_002, ..., trajectory_10000)
-- **Columns:** Months (Month_1, Month_2, ..., Month_480)
-- **Values:** Return at that month for that trajectory (decimal form)
+**Example structure:**
 
-**Example:**
 ```
-Trajectory      Month_1  Month_2  Month_3  ...  Month_480
-trajectory_001  0.0065   0.0064   0.0066  ...    0.0045
-trajectory_002  0.0068   0.0067   0.0065  ...    0.0046
-trajectory_003  0.0063   0.0062   0.0064  ...    0.0044
-...
+              Month_1   Month_2   Month_3   ...   Month_420
+trajectory_001  0.0234   0.0156  -0.0089   ...    0.0123
+trajectory_002  0.0187   0.0201   0.0076   ...   -0.0034
+trajectory_003 -0.0045   0.0134   0.0198   ...    0.0156
+...               ...      ...      ...    ...       ...
+trajectory_N    0.0167  -0.0023   0.0145   ...    0.0089
 ```
 
-**Interpretation:** The value at row trajectory_001, column Month_120 tells you the return earned by portfolio 1 during month 120.
-
-**Why transposed?** Excel has a limit of 16,384 columns. By putting trajectories in rows and months in columns, we can simulate millions of trajectories (Excel supports 1,048,576 rows) while keeping months (typically 480) well within the column limit.
-
-**Important:** Return calculation depends on USE_RANDOM_SCENARIOS:
-- Fixed mode: All portfolios in a given month face the same market condition
-- Random mode: Each portfolio faces a different market condition
-
-In both modes, CVaR constraints are enforced using all N_TRAJ scenarios during portfolio generation.
+**Values:** Monthly returns as decimals (0.0234 = 2.34% return)
 
 ## How It Works
 
 ### Overall Process
 
-For each glidepath curve, the simulation follows these steps:
+**Step 1: Load Historical Returns**
+- Read historical asset returns from `returns.csv`
+- Estimate mean vector and covariance matrix
 
-**Step 1: Load CVaR Limits**
-- Read the CVaR limit for each month from the glidepath curve
-- These limits define the constraints for portfolio generation
+**Step 2: Make Covariance PSD**
+- Ensure the covariance matrix is positive semi-definite
+- Replace any negative eigenvalues with small positive values
 
-**Step 2: Simulate Future Asset Returns**
-- Using either MVN or Copula method, simulate N_TRAJ scenarios for each month
-- This creates a 3D array: (HORIZON_MONTHS × N_TRAJ × N_ASSETS)
-- Example shape: (480 × 10000 × 9) for 480 months, 10000 scenarios, 9 assets
+**Step 3: Simulate Future Returns**
+- Generate N_TRAJ scenarios for each of HORIZON_MONTHS months
+- Use either MVN or Copula method
+- Result: 3D array of shape (HORIZON_MONTHS, N_TRAJ, N_ASSETS)
 
-**Step 3: Generate Scenario Selection (Fixed Scenario Mode Only)**
-- If USE_RANDOM_SCENARIOS = False:
-  - For each month, randomly select one scenario index (0 to N_TRAJ-1)
-  - This scenario will be used to calculate returns for all portfolios in that month
-  - Controlled by SCENARIO_SEED for reproducibility
-  - All curves share the same month-to-month scenario sequence
-- If USE_RANDOM_SCENARIOS = True:
-  - No pre-selection needed
-  - Each portfolio will be assigned a random scenario during processing
-  - Controlled by RANDOM_SCENARIO_SEED for reproducibility
-  - Each curve gets its own independent scenario sequence
+**Step 4: Generate Scenario Selection**
+- **Fixed mode:** Pre-generate HORIZON_MONTHS random scenario indices using SCENARIO_SEED
+- **Random mode:** Generate scenario indices on-the-fly for each portfolio and curve
 
-**Step 4: Generate Portfolios Month by Month**
+**Step 5: Load Glidepath Curves**
+- Load CVaR limits for each curve from step 01
+
+**Step 6: Process Each Curve (months in parallel)**
 
 For each month t:
-
 1. Get the CVaR limit for month t from the glidepath
 2. Get the simulated returns for month t (all N_TRAJ scenarios)
 3. Use Hit-and-Run algorithm to generate N_PORTFOLIOS_PER_MONTH portfolios where CVaR < limit
@@ -318,11 +300,11 @@ For each month t:
    - Random mode: Each portfolio uses its own randomly assigned scenario
 5. Store the return values
 
-**Step 5: Build Trajectories**
+**Step 7: Build Trajectories**
 - Trajectory i is formed by connecting portfolio i from each month
 - Each trajectory has HORIZON_MONTHS return values
 
-**Step 6: Export to Excel**
+**Step 8: Export to Excel**
 - Save returns matrix (N_PORTFOLIOS_PER_MONTH × HORIZON_MONTHS) in transposed format
 
 ### Scenario Selection Modes
@@ -336,15 +318,18 @@ Each month uses a single randomly selected scenario for all portfolios.
 **How it works:**
 
 ```python
+# Pre-generate scenario indices once (at start of simulation)
+scenario_indices = rng_scenario.integers(0, N_TRAJ, size=HORIZON_MONTHS)
+
 # For each month t:
-scenario_idx = scenario_indices[t]  # Random index (0 to N_TRAJ-1)
+scenario_idx = scenario_indices[t]  # Single pre-selected index (0 to N_TRAJ-1)
 selected_scenario_returns = month_returns[scenario_idx, :]  # One scenario
 portfolio_returns = portfolios @ selected_scenario_returns  # All portfolios use same scenario
 ```
 
 **Characteristics:**
 - All portfolios in month t face the same market condition
-- All curves share the same month-to-month scenario sequence
+- All curves share the same HORIZON_MONTHS-length scenario sequence
 - Pre-selected scenarios are generated once using SCENARIO_SEED
 
 **Advantages:**
@@ -391,7 +376,7 @@ portfolio_returns[i] = portfolio[i] @ selected_scenario_returns
 |--------|-----------|-------------|
 | Portfolios per month | Same scenario | Different scenarios |
 | Curves | Share scenario sequence | Independent scenario sequences |
-| Total scenario usage | HORIZON_MONTHS scenarios | N_PORTFOLIOS × HORIZON_MONTHS scenarios per curve |
+| Total scenarios used | HORIZON_MONTHS (shared across all curves) | N_PORTFOLIOS × HORIZON_MONTHS per curve |
 | Best for | Strategy comparison | Maximum diversity |
 
 **Note:** CVaR constraint enforcement uses all N_TRAJ scenarios during the Hit-and-Run generation process in both modes. The scenario selection mode only affects the final return calculation.
@@ -497,8 +482,12 @@ The `f_make_psd()` function ensures the covariance matrix is valid:
 
 The HORIZON_MONTHS parameter must match the number of months in step 01.
 
-**Example:**
-- Step 01: T_START_YEARS=25, T_END_YEARS=65 → 480 months
+**Example with current configuration (female retirement):**
+- Step 01: T_START_YEARS=25, T_END_YEARS=60 → MONTHS=420
+- Step 02: HORIZON_MONTHS must equal 420
+
+**Example with male retirement:**
+- Step 01: T_START_YEARS=25, T_END_YEARS=65 → MONTHS=480
 - Step 02: HORIZON_MONTHS must equal 480
 
 **What happens if they don't match:**
@@ -512,6 +501,17 @@ The code includes built-in validation:
 - Checks that ALPHA_CVAR is between 0 and 1
 - Checks that N_PORTFOLIOS_PER_MONTH ≥ 1
 - Warns if N_TRAJ < 100 (may produce unstable results)
+
+### Configuration for Different Gender Profiles
+
+**Current configuration:** Female retirement age (60 years, 420 months)
+
+**To configure for male profiles:**
+```python
+HORIZON_MONTHS = 480  # 40 years (65 - 25)
+```
+
+This must match the corresponding change in step 01.
 
 ## Next Step
 

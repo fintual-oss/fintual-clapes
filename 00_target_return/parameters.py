@@ -44,7 +44,7 @@ class PensionParameters:
         # ========================================
         # TARGET PARAMETERS
         # ========================================
-        self.replacement_rate_target = 0.63  # Target replacement rate (60%)
+        self.replacement_rate_target = 0.63  # Target replacement rate (63%)
         
         # Number of months to average for replacement rate calculation
         # Options: 12 (last year) or 120 (last 10 years)

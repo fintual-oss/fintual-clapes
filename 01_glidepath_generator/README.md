@@ -14,10 +14,10 @@ A CVaR glidepath defines the maximum allowed risk (measured by CVaR) at each poi
 2. **Transition phase**: From age t_A to age t_B, the CVaR limit decreases linearly from A to B
 3. **Constant low risk phase**: From age t_B onwards, the CVaR limit stays constant at level B
 
-For example, with A=0.08, B=0.05, t_A=45 years, t_B=65 years:
-- Ages 25-45: Maximum CVaR is 8% (constant, higher risk when young)
-- Ages 45-65: CVaR decreases gradually from 8% to 5% (transition to safety)
-- Ages 65+: Maximum CVaR is 5% (constant, lower risk at retirement)
+For example, with A=0.08, B=0.05, t_A=40 years, t_B=60 years:
+- Ages 25-40: Maximum CVaR is 8% (constant, higher risk when young)
+- Ages 40-60: CVaR decreases gradually from 8% to 5% (transition to safety)
+- Ages 60+: Maximum CVaR is 5% (constant, lower risk at retirement)
 
 ## File Structure
 
@@ -41,31 +41,33 @@ All parameters are defined in `config.py`. Edit this file to change the glidepat
 
 ```python
 T_START_YEARS = 25   # Starting age (when investment begins)
-T_END_YEARS = 65     # Retirement age (when investment ends)
-T_B_YEAR = 65        # Age when transition to final CVaR ends
+T_END_YEARS = 60     # Retirement age (when investment ends)
+T_B_YEAR = 60        # Age when transition to final CVaR ends
 ```
 
 **What they mean:**
 - `T_START_YEARS`: The age when the person starts investing (typically 20-35)
-- `T_END_YEARS`: The age when the person retires (typically 60-70)
+- `T_END_YEARS`: The age when the person retires (60 for women in Chilean system)
 - `T_B_YEAR`: The age when the CVaR finishes transitioning to its final value (usually equals retirement age)
+
+**Note:** Current configuration uses female retirement age (60 years) following Chilean pension system rules. For male profiles, T_END_YEARS and T_B_YEAR would typically be set to 65.
 
 **Derived values** (calculated automatically):
 - `T_START_MONTHS`: Starting age in months (T_START_YEARS × 12)
 - `T_END_MONTHS`: Retirement age in months (T_END_YEARS × 12)
 - `MONTHS`: Total number of months in the horizon (T_END_MONTHS - T_START_MONTHS)
 
-**Example:** If T_START_YEARS=25 and T_END_YEARS=65, then MONTHS=480 (40 years × 12 months/year)
+**Example:** If T_START_YEARS=25 and T_END_YEARS=60, then MONTHS=420 (35 years × 12 months/year)
 
 ### Transition Start Age
 
 ```python
-T_A_YEARS_VALUES = list(range(30, 66))
+T_A_YEARS_VALUES = list(range(30, 61))
 ```
 
 **What it means:** This defines all the possible ages when the transition from high risk to low risk can begin. The code will create one glidepath for each value in this list.
 
-**Current setting:** `list(range(30, 66))` creates the values [30, 31, 32, ..., 65], which is 36 different ages.
+**Current setting:** `list(range(30, 61))` creates the values [30, 31, 32, ..., 60], which is 31 different ages.
 
 **Constraint:** t_A must be less than T_B_YEAR (transition must start before it ends)
 
@@ -175,7 +177,7 @@ The Excel file has one sheet with the following structure:
 7. `Month_1`: CVaR limit for month 1
 8. `Month_2`: CVaR limit for month 2
 9. ... (continues for all months in the horizon)
-10. `Month_N`: CVaR limit for month N (where N = MONTHS, e.g., 480 for a 40-year horizon)
+10. `Month_N`: CVaR limit for month N (where N = MONTHS, e.g., 420 for a 35-year horizon)
 
 **Example:**
 
@@ -185,12 +187,12 @@ t_start            25          25          25          25
 t_A                35          35          35          35
 A                0.05        0.06        0.07        0.08
 B                0.03        0.03        0.03        0.03
-t_B                65          65          65          65
-t_end              65          65          65          65
+t_B                60          60          60          60
+t_end              60          60          60          60
 Month_1          0.05        0.06        0.07        0.08
 Month_2          0.05        0.06        0.07        0.08
 ...               ...         ...         ...         ...
-Month_480        0.03        0.03        0.03        0.03
+Month_420        0.03        0.03        0.03        0.03
 ```
 
 ## How It Works
@@ -209,16 +211,16 @@ The code creates two types of glidepaths:
 1. For each level in FLAT_LEVELS, create one glidepath where A = B = level
 2. Uses the first value from T_A_YEARS_VALUES as a placeholder (not meaningful for flat paths)
 
-**Example:** If you have:
-- 36 values for t_A (ages 30-65)
+**Example:** With current settings:
+- 31 values for t_A (ages 30-60)
 - 6 values for A (0.05 to 0.10)
 - 2 values for B (0.03, 0.04)
 - 6 flat levels (0.05 to 0.10)
 
 Then you get:
-- Declining: All A values are greater than all B values, so all combinations are valid: 36 × 6 × 2 = 432 curves
+- Declining: All A values are greater than all B values, so all combinations are valid: 31 × 6 × 2 = 372 curves
 - Flat: 6 curves
-- Total: 438 curves
+- Total: 378 curves
 
 ### Step 2: Calculate Monthly CVaR Values
 
@@ -240,11 +242,11 @@ For each month m (from month 1 to month MONTHS):
         CVaR(m) = B  (constant after transition)
 ```
 
-**Example:** For A=0.08, B=0.05, t_A=45 years (540 months from birth), t_B=65 years (780 months from birth):
+**Example:** For A=0.08, B=0.05, t_A=40 years (480 months from birth), t_B=60 years (720 months from birth):
 - If starting at age 25 (300 months from birth):
-  - Months 1-240 (ages 25-45): CVaR = 0.08
-  - Months 241-480 (ages 45-65): CVaR decreases linearly from 0.08 to 0.05
-  - Beyond month 480 (age 65+): CVaR = 0.05 (if extended beyond retirement)
+  - Months 1-180 (ages 25-40): CVaR = 0.08
+  - Months 181-420 (ages 40-60): CVaR decreases linearly from 0.08 to 0.05
+  - Beyond month 420 (age 60+): CVaR = 0.05 (if extended beyond retirement)
 
 ### Step 3: Export to Excel
 
@@ -264,18 +266,18 @@ Number of curves = (number of t_A values) × (number of A values) × (number of 
 Number of curves = number of FLAT_LEVELS
 
 **With current default settings:**
-- t_A values: 36 (from 30 to 65)
+- t_A values: 31 (from 30 to 60)
 - A values: 6 (from 0.05 to 0.10)
 - B values: 2 (0.03, 0.04)
 - Flat levels: 6 (0.05 to 0.10)
 
 Declining curves (A > B):
 - All A values (0.05, 0.06, 0.07, 0.08, 0.09, 0.10) are greater than all B values (0.03, 0.04)
-- Therefore, all combinations are valid: 36 × 6 × 2 = 432 declining curves
+- Therefore, all combinations are valid: 31 × 6 × 2 = 372 declining curves
 
 Flat curves: 6
 
-Total: 438 curves
+Total: 378 curves
 
 ### What do the monthly values represent?
 
@@ -288,6 +290,20 @@ For example, if `Month_120 = 0.07` for a curve, this means that at month 120 (ag
 - 0.05 = 5%
 - 0.08 = 8%
 - 0.10 = 10%
+
+## Configuration for Different Gender Profiles
+
+**Current configuration:** Female retirement age (60 years)
+
+**To configure for male profiles:**
+```python
+T_END_YEARS = 65     # Male retirement age
+T_B_YEAR = 65        # Transition ends at male retirement age
+```
+
+This would result in:
+- MONTHS = 480 (40 years × 12 months)
+- Different total number of curves if T_A_YEARS_VALUES range is adjusted
 
 ## Next Step
 

@@ -220,7 +220,7 @@ def main() -> None:
     # ----------------------------------------
     print("\n[1/6] Loading historical returns...")
     returns_df = pd.read_csv(
-        input_returns_path(), sep=";", parse_dates=[0], index_col=0
+        input_returns_path(), sep=",", parse_dates=[0], index_col=0
     )
 
     assert returns_df.shape[1] >= 2, "At least two assets are required."

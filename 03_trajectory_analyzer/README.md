@@ -47,7 +47,7 @@ All parameters are defined at the top of `main.py`. Edit this file to configure 
 ### Analysis Mode
 
 ```python
-ANALYSIS_MODE = 1  # OPTIONS: 1, 2, 3, 4, 5, 6, or 7
+ANALYSIS_MODE = 3  # OPTIONS: 1, 2, 3, 4, 5, 6, or 7
 ```
 
 The module supports seven analysis modes that apply different transformations to trajectories:
@@ -63,7 +63,7 @@ The module supports seven analysis modes that apply different transformations to
 - Trajectory N takes minimum return from each month
 - Total trajectories: N
 
-**Mode 3: Permuted Trajectories Only**
+**Mode 3: Permuted Trajectories Only (Current default)**
 - Apply random permutation to returns within each month
 - Maintains CVaR compliance (same pool of valid returns, different assignment)
 - Total trajectories: N
@@ -107,7 +107,7 @@ RANDOM_SEED = 42  # Set to None for different results each run
 ### Target Return Threshold
 
 ```python
-TARGET_RETURN_THRESHOLD = 0.0855  # 8.55% annual return
+TARGET_RETURN_THRESHOLD = 0.055  # 5.5% annual return
 ```
 
 **What it means:** The minimum acceptable annualized return. This is used to determine if a trajectory is "successful" or not.
@@ -116,9 +116,11 @@ TARGET_RETURN_THRESHOLD = 0.0855  # 8.55% annual return
 - Trajectories with annualized return > TARGET_RETURN_THRESHOLD are considered successful
 - Used to calculate success rate (percentage of successful trajectories)
 
-**How to set this value:** Use the required return from step 00 for the relevant demographic profile. The required return is the annual return needed to achieve a 60% replacement rate in the Chilean pension system.
+**How to set this value:** Use the required return from step 00 for the relevant demographic profile. The required return is the annual return needed to achieve a 63% replacement rate in the Chilean pension system.
 
-**Format:** Decimal (0.0855 = 8.55% annual return)
+**Current configuration:** 5.5% represents an approximate required return for a female profile with specific contribution density parameters. Adjust this value based on results from step 00 for your specific demographic profile of interest.
+
+**Format:** Decimal (0.055 = 5.5% annual return)
 
 ### Percentiles
 
@@ -192,12 +194,12 @@ This sheet has one row per curve, sorted by performance. It combines glidepath p
 - `t_A`: Transition start age in years (e.g., 45)
 - `A`: Initial CVaR limit when young (e.g., 0.08)
 - `B`: Final CVaR limit at retirement (e.g., 0.03)
-- `t_B`: Transition end age in years (e.g., 65)
-- `t_end`: Retirement age in years (e.g., 65)
+- `t_B`: Transition end age in years (e.g., 60 for female, 65 for male)
+- `t_end`: Retirement age in years (e.g., 60 for female, 65 for male)
 
 **Data Summary:**
 - `n_trajectories`: Number of trajectories analyzed (N, 2N, or 3N depending on mode)
-- `horizon_months`: Investment horizon in months (e.g., 480)
+- `horizon_months`: Investment horizon in months (e.g., 420 for female profile)
 - `analysis_mode`: Analysis mode used (1, 2, 3, 4, 5, 6, or 7)
 
 **Risk Metric:**
@@ -217,13 +219,15 @@ This sheet has one row per curve, sorted by performance. It combines glidepath p
 - `return_p75`: 75th percentile return (e.g., 0.0589 = 5.89%)
 - `return_p90`: 90th percentile return (e.g., 0.0643 = 6.43%)
 
-**Example:**
+**Example (female profile with 420 months):**
 ```
 curve_id  t_A   A      B      cumulative_risk  return_mean  pct_above_target  return_p50  analysis_mode
-curve_0042  45  0.08  0.03      28.45           0.0523         0.87            0.0519           1
-curve_0015  46  0.09  0.03      30.12           0.0498         0.82            0.0495           1
-curve_0089  44  0.07  0.03      26.78           0.0545         0.91            0.0542           1
+curve_0042  45  0.08  0.03      24.80           0.0523         0.87            0.0519           3
+curve_0015  46  0.09  0.03      26.25           0.0498         0.82            0.0495           3
+curve_0089  44  0.07  0.03      23.35           0.0545         0.91            0.0542           3
 ```
+
+**Note:** cumulative_risk values are lower for 420-month horizon (female) compared to 480-month horizon (male).
 
 **Sorting:** Rows are sorted by:
 1. `pct_above_target` (descending) - curves with more successful trajectories first
@@ -241,28 +245,27 @@ curve_0089  44  0.07  0.03      26.78           0.0545         0.91            0
 
 **Step 1: Load Glidepath Parameters**
 - Read `glidepaths_universe.xlsx` from step 01
-- Extract parameters (t_start, t_A, A, B, t_B, t_end) for all curves
+- Extract parameters: t_start, t_A, A, B, t_B, t_end
 
-**Step 2: Load CVaR Limit Curves**
-- Read `glidepaths_universe.xlsx` from step 01
-- Extract monthly CVaR limits (Month_1 through Month_480) for all curves
-- These are the CVaR constraints that each glidepath imposes
+**Step 2: Load CVaR Limits**
+- Read monthly CVaR limits from step 01
+- These are used to calculate cumulative risk (area under curve)
 
-**Step 3: Find Available Curves**
-- Scan the `hit_run_results/` directory
-- Identify which curves have trajectory results from step 02
-- Only curves with results will be analyzed
+**Step 3: Find Available Trajectories**
+- Scan `outputs/hit_run_results/` for result files
+- List all curves with available trajectory data
 
 **Step 4: Analyze Each Curve**
 
-For each curve with results:
+For each curve:
 
 **a. Load Trajectory Data**
+
 ```
-Load returns matrix from curve_XXXX_results.xlsx:
+File format:
 - File is stored as (N_TRAJECTORIES × MONTHS) - rows=trajectories, columns=months
 - After loading, data is TRANSPOSED to (MONTHS × N_TRAJECTORIES) for calculations
-- returns_df: monthly returns (480 rows × 10000 columns after transpose)
+- returns_df: monthly returns (420 rows × 10000 columns after transpose for female profile)
 
 After transpose:
 - Each column is one trajectory
@@ -288,7 +291,7 @@ For each month:
   Sorted trajectory N gets: min return from each month
 ```
 
-**Mode 3: Generate permuted trajectories**
+**Mode 3: Generate permuted trajectories (Current default)**
 ```
 For each month:
   Randomly shuffle returns across trajectories
@@ -370,9 +373,9 @@ For each trajectory (each column of transformed returns):
    ```
    where T is the number of months
 
-   Example: If cumulative return over 480 months is 1.50 (150%), then:
+   Example with 420 months (female profile): If cumulative return over 420 months is 1.50 (150%), then:
    ```
-   annualized = (1 + 1.50)^(12/480) - 1 = (2.50)^0.025 - 1 = 0.0238 = 2.38% per year
+   annualized = (1 + 1.50)^(12/420) - 1 = (2.50)^0.0286 - 1 = 0.0267 = 2.67% per year
    ```
 
 This produces one annualized return value per trajectory.
@@ -402,16 +405,18 @@ p10 = value at position 100 (10% of 1000)
 
 For this curve, sum the CVaR limits from step 01:
 ```
-cvar_limits = [Month_1, Month_2, ..., Month_480]
+cvar_limits = [Month_1, Month_2, ..., Month_420]  # For female profile
 cumulative_risk = sum(cvar_limits)
 ```
 
-Example: If CVaR limits are [0.08, 0.08, 0.08, ..., 0.03], then:
+Example with 420 months: If CVaR limits are [0.08, 0.08, 0.08, ..., 0.03], then:
 ```
-cumulative_risk = 0.08 + 0.08 + 0.08 + ... + 0.03 = 28.45
+cumulative_risk = 0.08 + 0.08 + 0.08 + ... + 0.03 = 24.80
 ```
 
 This represents the area under the CVaR glidepath curve from step 01.
+
+**Note:** Cumulative risk values are lower for shorter horizons (420 months vs 480 months).
 
 **g. Combine with Parameters**
 
@@ -445,7 +450,7 @@ Write 1 sheet to Excel file:
 
 **Why annualize?**
 - Different horizons are hard to compare directly
-- A 40-year return of 150% is different from a 20-year return of 150%
+- A 35-year return of 150% is different from a 20-year return of 150%
 - Annualizing puts everything on "per year" basis
 
 **Formula:**
@@ -481,6 +486,7 @@ This is the sum of all monthly CVaR limits from the glidepath curve in step 01.
 **Interpretation:**
 - Higher cumulative risk = glidepath allows more risk throughout the investment horizon
 - Lower cumulative risk = glidepath is more conservative overall
+- Values scale with horizon length (420 months produces lower values than 480 months)
 
 ### Return Percentiles
 
@@ -502,3 +508,28 @@ After running this analysis:
 3. Examine `cumulative_risk` to understand total CVaR exposure
 4. Analyze top-performing curves' parameters (A, B, t_A) to identify optimal glidepath characteristics
 
+## Configuration for Different Gender Profiles
+
+**Current configuration:** Female retirement age (60 years, 420 months)
+
+**Expected values:**
+- `horizon_months`: 420
+- `t_B` and `t_end`: 60
+- `cumulative_risk`: Lower values (approximately 24-26 range for typical glidepaths)
+
+**To configure for male profiles:**
+- Ensure steps 01 and 02 use T_END_YEARS = 65
+- `horizon_months` will be 480
+- `t_B` and `t_end` will be 65
+- `cumulative_risk` will be higher (approximately 28-30 range for typical glidepaths)
+- Adjust `TARGET_RETURN_THRESHOLD` based on step 00 results for male profile
+
+## Connection to Step 00 (Target Return Calculator)
+
+The TARGET_RETURN_THRESHOLD should be calibrated using results from step 00:
+
+1. Run step 00 to find the required return for your demographic profile of interest
+2. Use that value as TARGET_RETURN_THRESHOLD in this module
+3. Interpret `pct_above_target` as: "X% of portfolio trajectories achieve the return needed for adequate retirement in the Chilean pension system"
+
+**Example:** If step 00 shows a female with gaps needs 5.5% annual return for 63% replacement rate, set TARGET_RETURN_THRESHOLD = 0.055.
