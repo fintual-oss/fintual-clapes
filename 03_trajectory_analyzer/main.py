@@ -19,7 +19,8 @@ from loaders import (
 from metrics import (
     calculate_cumulative_return_annualized,
     calculate_trajectory_statistics,
-    calculate_percentiles
+    calculate_percentiles,
+    calculate_pct_above_targets
 )
 from exporters import export_analysis_to_excel
 from transformations import transform_trajectories, get_mode_description
@@ -48,8 +49,18 @@ ANALYSIS_MODE = 3  # OPTIONS: 1, 2, 3, 4, 5, 6, or 7
 # Set to None for different results each run, or set an integer for reproducibility
 RANDOM_SEED = 42
 
-# Target return threshold (annualized)
-TARGET_RETURN_THRESHOLD = 0.055
+# Target return thresholds (annualized)
+# Can be a single value or multiple: [0.04, 0.055, 0.07]
+TARGET_RETURN_THRESHOLDS = [
+    0.0686, 0.0676, 0.0666, 0.0656, 0.0647, 0.0638, 0.0629, 0.0620,
+    0.0612, 0.0603, 0.0595, 0.0587, 0.0579, 0.0571, 0.0563, 0.0556,
+    0.0548, 0.0541, 0.0534, 0.0526, 0.0519, 0.0512, 0.0505, 0.0499,
+    0.0492, 0.0485, 0.0479, 0.0472, 0.0466, 0.0460, 0.0453, 0.0447,
+    0.0441, 0.0435, 0.0429, 0.0423, 0.0418, 0.0412, 0.0406, 0.0401,
+    0.0395, 0.0390, 0.0384, 0.0379, 0.0373, 0.0368, 0.0363, 0.0358,
+    0.0353, 0.0347, 0.0342, 0.0337, 0.0332, 0.0328, 0.0323, 0.0318,
+    0.0313, 0.0308, 0.0303, 0.0299, 0.0294
+]
 
 # Percentiles to calculate
 PERCENTILES = [10, 25, 50, 75, 90]
@@ -94,7 +105,8 @@ def main() -> None:
     print(f"  {get_mode_description(ANALYSIS_MODE)}")
     if ANALYSIS_MODE in [3, 4, 6, 7]:
         print(f"  Random seed: {RANDOM_SEED}")
-    print(f"Target return threshold: {TARGET_RETURN_THRESHOLD*100:.2f}%")
+    thresholds_str = ", ".join([f"{t*100:.2f}%" for t in TARGET_RETURN_THRESHOLDS])
+    print(f"Target return thresholds: {thresholds_str}")
     print(f"Percentiles: {PERCENTILES}")
     print("=" * 70)
 
@@ -180,16 +192,24 @@ def main() -> None:
                 transformed_df.values
             )
 
-            # Calculate summary statistics
+            # Calculate summary statistics (mean, std, min, max)
             return_stats = calculate_trajectory_statistics(
                 cumulative_returns,
-                TARGET_RETURN_THRESHOLD
+                TARGET_RETURN_THRESHOLDS[0]  # kept for internal use, not exported
             )
+            # Remove legacy single-threshold field
+            return_stats.pop('pct_above_target', None)
 
             # Calculate percentiles
             return_percentiles = calculate_percentiles(
                 cumulative_returns,
                 PERCENTILES
+            )
+
+            # Calculate % above each target threshold
+            pct_above_targets = calculate_pct_above_targets(
+                cumulative_returns,
+                TARGET_RETURN_THRESHOLDS
             )
 
             # Get curve parameters
@@ -226,15 +246,16 @@ def main() -> None:
                 'analysis_mode': ANALYSIS_MODE,
                 'cumulative_risk': cumulative_risk,
                 **return_stats,
-                **return_percentiles
+                **return_percentiles,
+                **pct_above_targets
             }
 
             results_list.append(result)
 
             print(f"   ✓ Analysis complete")
             print(f"      Return (annualized mean): {return_stats['return_mean']*100:.2f}%")
-            print(f"      Trajectories > {TARGET_RETURN_THRESHOLD*100:.2f}%: "
-                  f"{return_stats['pct_above_target']*100:.2f}%")
+            for key, val in pct_above_targets.items():
+                print(f"      Trajectories > {key.replace('pct_above_', '')}: {val*100:.2f}%")
             print(f"      Cumulative risk (area under curve): {cumulative_risk:.4f}")
 
         except Exception as e:
@@ -254,9 +275,10 @@ def main() -> None:
 
     results_df = pd.DataFrame(results_list)
 
-    # Sort by percentage above target, then by mean return
+    # Sort by first threshold column, then by mean return
+    first_threshold_key = f"pct_above_{TARGET_RETURN_THRESHOLDS[0]*100:.2f}%"
     results_df = results_df.sort_values(
-        by=['pct_above_target', 'return_mean'],
+        by=[first_threshold_key, 'return_mean'],
         ascending=[False, False]
     )
 
@@ -285,16 +307,18 @@ def main() -> None:
     print("=" * 70)
     print(f"Analysis mode: {ANALYSIS_MODE} - {get_mode_description(ANALYSIS_MODE)}")
     print(f"Curves analyzed: {len(results_df)}")
-    print(f"Target return: {TARGET_RETURN_THRESHOLD*100:.2f}%")
+    thresholds_str = ", ".join([f"{t*100:.2f}%" for t in TARGET_RETURN_THRESHOLDS])
+    print(f"Target return thresholds: {thresholds_str}")
 
     if len(results_df) > 0:
         best_curve = results_df.iloc[0]
-        print(f"\nBest curve (highest % above target):")
+        print(f"\nBest curve (highest % above first target):")
         print(f"  {best_curve['curve_id']}")
         print(f"  - A: {best_curve['A']:.4f}, B: {best_curve['B']:.4f}")
         print(f"  - t_A: {best_curve['t_A']:.0f} years")
         print(f"  - Return (mean): {best_curve['return_mean']*100:.2f}%")
-        print(f"  - Trajectories > target: {best_curve['pct_above_target']*100:.1f}%")
+        for key in pct_above_targets.keys():
+            print(f"  - Trajectories > {key.replace('pct_above_', '')}: {best_curve[key]*100:.2f}%")
         print(f"  - Cumulative risk: {best_curve['cumulative_risk']:.4f}")
 
     print("\n" + "=" * 70)
