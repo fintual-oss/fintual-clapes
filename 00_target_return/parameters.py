@@ -20,9 +20,9 @@ class PensionParameters:
         # ========================================
         self.age_start_work_male = 25     # Age when men start working
         self.age_start_work_female = 25   # Age when women start working
-        self.age_retire_male = 60         # Legal retirement age for men
+        self.age_retire_male = 65         # Legal retirement age for men
         self.age_retire_female = 60       # Legal retirement age for women
-        self.life_expectancy_male = 90    # Life expectancy for men
+        self.life_expectancy_male = 88    # Life expectancy for men
         self.life_expectancy_female = 90  # Life expectancy for women
         
         # ========================================
@@ -59,11 +59,11 @@ class PensionParameters:
         
         # Contribution density for men
         self.contribution_density_male_no_gaps = 1.0    # 100% - no gaps
-        self.contribution_density_male_with_gaps = 0.98  # 58.3% - with gaps
+        self.contribution_density_male_with_gaps = 0.60  # 58.3% - with gaps
         
         # Contribution density for women
         self.contribution_density_female_no_gaps = 1.0   # 100% - no gaps
-        self.contribution_density_female_with_gaps = 0.99 # 49.6% - with gaps
+        self.contribution_density_female_with_gaps = 0.60 # 49.6% - with gaps
         
         # ========================================
         # BINARY SEARCH PARAMETERS

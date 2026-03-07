@@ -104,12 +104,8 @@ salary_growth_real = 0.0125    # Real annual salary growth (1.25%)
 ### Return Parameters
 
 ```python
-return_post_retirement = 0.025  # 2.5% real return after retirement
+return_post_retirement = 0.032  # 3.2% real return after retirement
 ```
-
-**What it means:**
-- After retiring, the pension fund continues earning returns
-- 2.5% is approximately the real yield on 10-year inflation-indexed government bonds
 
 **Note:** The return during accumulation phase is what the model searches for (not a parameter).
 

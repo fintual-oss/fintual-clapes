@@ -33,7 +33,7 @@ ALPHA_CVAR = 0.90  # CVaR confidence level (0.90 = worst 10% tail)
 # Portfolio generation
 N_PORTFOLIOS_PER_MONTH = 10_000  # Number of portfolios to generate per month
 N_TRAJ = 10_000  # Number of Monte Carlo scenarios
-HORIZON_MONTHS = 420  # 40 years
+HORIZON_MONTHS = 480  # 40 years
 
 # Scenario selection mode
 USE_RANDOM_SCENARIOS = False  # True = each portfolio uses different scenario (full randomness)
@@ -42,8 +42,14 @@ USE_RANDOM_SCENARIOS = False  # True = each portfolio uses different scenario (f
 # Random seeds (for reproducibility)
 RETURNS_SEED = 111  # Seed for simulated returns
 HIT_RUN_SEED = 222  # Seed for Hit-and-Run algorithm
-SCENARIO_SEED = 333  # Seed for scenario selection per month (used when USE_RANDOM_SCENARIOS=False)
 RANDOM_SCENARIO_SEED = 444  # Seed for random scenario assignment (used when USE_RANDOM_SCENARIOS=True)
+
+# Run label - CHANGE THIS before running
+# Format: <your_name>_<SCENARIO_SEED>  (e.g., "juan_333", "maria_555")
+# This creates a unique output folder: outputs/hit_run_results/<RUN_LABEL>/
+# Each team member should use their own label to avoid overwriting results
+SCENARIO_SEED = 333  # Seed for scenario selection per month
+RUN_LABEL = f"user_{SCENARIO_SEED}"  # ← CHANGE "user" to your name
 
 # Curve selection
 PROCESS_ALL_CURVES = True  # True = process all curves, False = only selected
@@ -198,6 +204,7 @@ def main() -> None:
     print(f"Horizon: {HORIZON_MONTHS} months")
     print(f"Returns seed: {RETURNS_SEED}")
     print(f"Hit-and-Run seed: {HIT_RUN_SEED}")
+    print(f"Run label: {RUN_LABEL}")
     if USE_RANDOM_SCENARIOS:
         print(f"Scenario mode: RANDOM (each portfolio uses different scenario)")
         print(f"Random scenario seed: {RANDOM_SCENARIO_SEED}")
@@ -306,7 +313,7 @@ def main() -> None:
     # 5. Create output directory
     # ----------------------------------------
     print("\n[5/6] Setting up output directory...")
-    output_dir = output_hit_run_dir()
+    output_dir = output_hit_run_dir(RUN_LABEL)
     os.makedirs(output_dir, exist_ok=True)
     print(f"   Output directory: {output_dir}")
 
@@ -407,7 +414,7 @@ def main() -> None:
             print(f"   Warning: {failed_months - 5} additional months failed (not shown)")
         
         # Export results for this curve
-        output_file = output_hit_run_file(curve_name)
+        output_file = output_hit_run_file(curve_name, RUN_LABEL)
         export_curve_results(
             output_file=output_file,
             returns_matrix=returns_matrix,
