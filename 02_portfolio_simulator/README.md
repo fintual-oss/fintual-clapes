@@ -2,9 +2,9 @@
 
 ## Overview
 
-This module takes the CVaR glidepath curves from step 01 and generates actual portfolio trajectories that obey the risk constraints. For each glidepath curve, it creates many different portfolio paths. Each path represents one possible way to invest while staying within the CVaR limits.
+This module takes CVaR glidepath curves from step 01 and generates portfolio trajectories that obey the risk constraints. For each glidepath curve, it creates many different portfolio paths where each path represents one possible investment strategy while staying within the CVaR limits.
 
-The key innovation is the Hit-and-Run algorithm, which efficiently samples portfolios that satisfy the CVaR constraint.
+The key innovation is the Hit-and-Run algorithm, which efficiently samples portfolios that satisfy the CVaR constraint during generation, eliminating the need for post-validation.
 
 ## What Does This Module Do?
 
@@ -14,12 +14,12 @@ The key innovation is the Hit-and-Run algorithm, which efficiently samples portf
 
 **Process:** 
 - Simulate future market scenarios
-- For each month and each glidepath, generate N different portfolios where CVaR is below the limit
-- Calculate returns for each portfolio using a single randomly selected scenario per month
+- For each month and each glidepath, generate N different portfolios where CVaR < limit
+- Calculate returns for each portfolio using selected scenario(s) based on USE_RANDOM_SCENARIOS mode
 - Build complete trajectories by connecting portfolios across months
 
 **Output:** 
-- Excel files (one per glidepath curve) containing CVaR values and returns for all trajectories
+- Excel files (one per glidepath curve) containing monthly returns for all trajectories
 
 ## File Structure
 
@@ -44,8 +44,6 @@ All parameters are defined at the top of `main.py`. Edit this file to configure 
 ```python
 SIMULATION_METHOD = "copula"  # Options: "mvn" or "copula"
 ```
-
-**What it means:** How to simulate future asset returns.
 
 **Options:**
 
@@ -80,9 +78,9 @@ ALPHA_CVAR = 0.90  # CVaR confidence level
 ### Portfolio Generation
 
 ```python
-N_PORTFOLIOS_PER_MONTH = 1000  # Number of portfolios per month
-N_TRAJ = 10000                 # Monte Carlo scenarios
-HORIZON_MONTHS = 480           # Total months in simulation
+N_PORTFOLIOS_PER_MONTH = 10_000  # Number of portfolios per month
+N_TRAJ = 10_000                  # Monte Carlo scenarios
+HORIZON_MONTHS = 420             # Total months in simulation (35 years)
 ```
 
 **What they mean:**
@@ -91,27 +89,61 @@ HORIZON_MONTHS = 480           # Total months in simulation
 - How many different portfolios to generate for each month
 - Each portfolio becomes one trajectory when connected across all months
 - More portfolios = more diverse strategies tested
-- Current setting: 1000 trajectories per curve
+- Default: 10,000 trajectories per curve
 
 **N_TRAJ:**
-- Number of Monte Carlo scenarios used to estimate CVaR
-- More scenarios = more accurate CVaR estimates but slower
-- Must be at least 100 for reasonable accuracy
-- Current setting: 10000 scenarios
+- Number of Monte Carlo scenarios used during portfolio generation
+- More scenarios = more accurate CVaR constraint enforcement
+- Minimum recommended: 100 scenarios, but ideally 1000+ for stable results
+- With ALPHA_CVAR=0.90 (worst 10%), you need enough scenarios so that 10% gives at least 10 observations
+- Default: 10,000 scenarios
 
 **HORIZON_MONTHS:**
 - Total number of months in the investment horizon
 - Must match the number of months in step 01
 - Formula: (T_END_YEARS - T_START_YEARS) × 12
-- Example: (65 - 25) × 12 = 480 months = 40 years
+- Current configuration: (60 - 25) × 12 = 420 months = 35 years (female retirement age)
 - **CRITICAL:** This must equal the MONTHS value from step 01 config
+
+**Important:** The code does not automatically validate this. You must manually ensure:
+- Step 01: MONTHS = (T_END_YEARS - T_START_YEARS) × 12
+- Step 02: HORIZON_MONTHS = same value
+
+**Example:** If step 01 uses ages 25-60 (35 years = 420 months), then HORIZON_MONTHS must be 420.
+
+**Note on gender configuration:** Current configuration uses female retirement age (60 years, 420 months total). For male profiles with retirement at 65, HORIZON_MONTHS would be 480 (40 years × 12 months).
+
+### Scenario Selection Mode
+
+```python
+USE_RANDOM_SCENARIOS = False  # Scenario assignment mode
+```
+
+**Options:**
+
+**USE_RANDOM_SCENARIOS = False (Default - Fixed Scenario Mode):**
+- All portfolios in month t use the same randomly selected scenario
+- All curves share the same month-to-month scenario sequence
+- Controlled by SCENARIO_SEED for reproducibility
+- Ensures fair comparison: all portfolios face identical market conditions
+
+**USE_RANDOM_SCENARIOS = True (Random Scenario Mode):**
+- Each portfolio in month t uses a different randomly selected scenario
+- Each curve has its own independent random scenario sequence
+- Controlled by RANDOM_SCENARIO_SEED for reproducibility
+- Maximizes scenario diversity across portfolios and curves
+
+**Which mode to use:**
+- Fixed mode: When comparing portfolio strategies under identical market conditions
+- Random mode: When maximizing exploration of different market realizations
 
 ### Random Seeds
 
 ```python
-RETURNS_SEED = 42      # Seed for asset return simulation
-HIT_RUN_SEED = 123     # Seed for Hit-and-Run algorithm
-SCENARIO_SEED = 999    # Seed for scenario selection per month
+RETURNS_SEED = 111           # Seed for asset return simulation
+HIT_RUN_SEED = 222           # Seed for Hit-and-Run algorithm
+SCENARIO_SEED = 333          # Seed for fixed scenario mode
+RANDOM_SCENARIO_SEED = 444   # Seed for random scenario mode
 ```
 
 **What they mean:** These control the random number generation to make results reproducible.
@@ -125,39 +157,73 @@ SCENARIO_SEED = 999    # Seed for scenario selection per month
 - Same seed = identical portfolios generated
 
 **SCENARIO_SEED:**
+- Only used when USE_RANDOM_SCENARIOS = False
 - Controls which scenario is selected for each month
 - Same seed = identical market realizations each month
+- All curves share the same month-to-month scenario sequence
 
-**Why three separate seeds?**
+**RANDOM_SCENARIO_SEED:**
+- Only used when USE_RANDOM_SCENARIOS = True
+- Controls the random scenario assignment for each portfolio
+- Same seed = identical random scenario assignments
+- Each curve gets a different but reproducible scenario sequence
+
+**Why separate seeds?**
 - Allows you to test different aspects independently
-- Example: Keep RETURNS_SEED and SCENARIO_SEED fixed, change HIT_RUN_SEED to test different portfolio strategies under the same market conditions
+- Example: Keep RETURNS_SEED fixed, change HIT_RUN_SEED to test different portfolio strategies under the same market scenarios
+- Example: Keep RETURNS_SEED and HIT_RUN_SEED fixed, change RANDOM_SCENARIO_SEED to test different market realization patterns
 
-**Reproducibility:** Using the same three seeds will produce exactly the same results every time.
+**Reproducibility:** Using the same seeds will produce exactly the same results every time.
+
+### Parallelization Configuration
+
+```python
+N_PROCESSES = 15  # Number of parallel processes
+```
+
+**What it means:** Controls how many months are processed simultaneously within each curve.
+
+**Options:**
+- `None` or `"auto"`: Uses all available CPU cores minus 1 (recommended)
+- Integer (e.g., 1, 4, 8, 15): Uses exactly that many processes
+- `1`: Disables parallelization (sequential month processing)
+
+**How it works:**
+- Curves are processed sequentially (one at a time)
+- Within each curve, months are processed in parallel
+- This is efficient because months are independent within a curve
+
+**Memory consideration:**
+- Each parallel process loads the month's return scenarios (N_TRAJ × N_ASSETS)
+- More processes = more memory needed
+- Generally safe with "auto" for typical workloads
+
+**Example:** With N_PROCESSES=15 and HORIZON_MONTHS=420:
+- Process 15 months simultaneously
+- Complete all 420 months in 28 batches (420/15)
+- Much faster than sequential processing
 
 ### Curve Selection
 
 ```python
-PROCESS_ALL_CURVES = True  # Process all curves or selected subset
-
-CURVES_TO_PROCESS = [      # Only used if PROCESS_ALL_CURVES = False
-    "curve_0001",
-    "curve_0002",
-    "curve_0003"
-]
+PROCESS_ALL_CURVES = True  # Process all curves or only selected ones
+CURVES_TO_PROCESS = ["curve_0001", "curve_0002"]  # Used if PROCESS_ALL_CURVES=False
 ```
 
-**What it means:**
+**PROCESS_ALL_CURVES:**
+- `True`: Process every curve from step 01
+- `False`: Only process curves listed in CURVES_TO_PROCESS
 
-**PROCESS_ALL_CURVES = True:**
-- Process every curve from step 01
-- Use this for complete analysis
+**CURVES_TO_PROCESS:**
+- Only used when PROCESS_ALL_CURVES = False
+- List of curve names to process (must match names from step 01)
 
-**PROCESS_ALL_CURVES = False:**
-- Process only the curves listed in CURVES_TO_PROCESS
-- Use this for testing or analyzing specific glidepaths
-- Faster when you only want to test a few curves
+**Use cases:**
+- Set PROCESS_ALL_CURVES = True for full analysis
+- Set PROCESS_ALL_CURVES = False for testing or debugging specific curves
 
 ## How to Run
+
 ```bash
 python -m 02_portfolio_simulator.main
 ```
@@ -168,126 +234,152 @@ Or, if you are inside the `02_portfolio_simulator/` directory:
 python main.py
 ```
 
-### Prerequisites
-
-Before running, ensure these files exist:
-
-1. `returns.csv` at the repository root (historical asset returns)
-2. `outputs/glidepaths_universe.xlsx` (from step 01)
-
 ## Output Files
 
 **Location:** `outputs/hit_run_results/`
 
-**Files:** One Excel file per curve: `curve_XXXX_results.xlsx`
+**Files:** One Excel file per glidepath curve: `curve_XXXX_results.xlsx`
 
-**Structure:** Each Excel file contains 2 sheets:
+**Structure:** Each file has one sheet named "returns":
 
-### Sheet 1: "cvar"
+**Format (TRANSPOSED for large simulations):**
+- **Rows:** Trajectories (trajectory_001, trajectory_002, ..., trajectory_N)
+- **Columns:** Months (Month_1, Month_2, ..., Month_420)
 
-Monthly CVaR values for each trajectory.
+**Why transposed?**
+- Excel has a 16,384 column limit but over 1 million row limit
+- With standard orientation (months as rows): Limited to ~16,000 trajectories
+- With transposed orientation (months as columns): Can store millions of trajectories
+- This format allows simulating 100,000+ trajectories without hitting Excel limits
 
-**Format (IMPORTANT - matrices are transposed for Excel compatibility):**
-- **Rows:** Trajectories (trajectory_001, trajectory_002, ..., trajectory_1000)
-- **Columns:** Months (Month_1, Month_2, ..., Month_480)
-- **Values:** CVaR at that month for that trajectory (decimal form)
+**Example structure:**
 
-**Example:**
 ```
-Trajectory    Month_1  Month_2  Month_3  ...  Month_480
-trajectory_001  0.0587   0.0588   0.0587  ...    0.0299
-trajectory_002  0.0592   0.0593   0.0591  ...    0.0298
-trajectory_003  0.0581   0.0582   0.0583  ...    0.0300
-...
-```
-
-**Interpretation:** The value at row trajectory_001, column Month_120 tells you the CVaR of portfolio 1 at month 120.
-
-**Why transposed?** Excel has a limit of 16,384 columns. By putting trajectories in rows and months in columns, we can simulate millions of trajectories (Excel supports 1,048,576 rows) while keeping months (typically 480) well within the column limit.
-
-### Sheet 2: "returns"
-
-Monthly returns for each trajectory.
-
-**Format (IMPORTANT - matrices are transposed for Excel compatibility):**
-- **Rows:** Trajectories (trajectory_001, trajectory_002, ..., trajectory_1000)
-- **Columns:** Months (Month_1, Month_2, ..., Month_480)
-- **Values:** Return at that month for that trajectory (decimal form)
-
-**Example:**
-```
-Trajectory    Month_1  Month_2  Month_3  ...  Month_480
-trajectory_001  0.0065   0.0064   0.0066  ...    0.0045
-trajectory_002  0.0068   0.0067   0.0065  ...    0.0046
-trajectory_003  0.0063   0.0062   0.0064  ...    0.0044
-...
+              Month_1   Month_2   Month_3   ...   Month_420
+trajectory_001  0.0234   0.0156  -0.0089   ...    0.0123
+trajectory_002  0.0187   0.0201   0.0076   ...   -0.0034
+trajectory_003 -0.0045   0.0134   0.0198   ...    0.0156
+...               ...      ...      ...    ...       ...
+trajectory_N    0.0167  -0.0023   0.0145   ...    0.0089
 ```
 
-**Interpretation:** The value at row trajectory_001, column Month_120 tells you the return earned by portfolio 1 during month 120.
-
-**IMPORTANT:** These returns use a single randomly selected scenario per month (not averaged over all scenarios). This is a key feature explained below.
+**Values:** Monthly returns as decimals (0.0234 = 2.34% return)
 
 ## How It Works
 
 ### Overall Process
 
-For each glidepath curve, the simulation follows these steps:
+**Step 1: Load Historical Returns**
+- Read historical asset returns from `returns.csv`
+- Estimate mean vector and covariance matrix
 
-**Step 1: Load CVaR Limits**
-- Read the CVaR limit for each month from the glidepath curve
-- These limits define the constraints for portfolio generation
+**Step 2: Make Covariance PSD**
+- Ensure the covariance matrix is positive semi-definite
+- Replace any negative eigenvalues with small positive values
 
-**Step 2: Simulate Future Asset Returns**
-- Using either MVN or Copula method, simulate N_TRAJ scenarios for each month
-- This creates a 3D array: (HORIZON_MONTHS × N_TRAJ × N_ASSETS)
-- Example shape: (480 × 10000 × 9) for 480 months, 10000 scenarios, 9 assets
+**Step 3: Simulate Future Returns**
+- Generate N_TRAJ scenarios for each of HORIZON_MONTHS months
+- Use either MVN or Copula method
+- Result: 3D array of shape (HORIZON_MONTHS, N_TRAJ, N_ASSETS)
 
-**Step 3: Generate Scenario Selection**
-- For each month, randomly select one scenario index (0 to N_TRAJ-1)
-- This scenario will be used to calculate returns for all portfolios in that month
-- Controlled by SCENARIO_SEED for reproducibility
+**Step 4: Generate Scenario Selection**
+- **Fixed mode:** Pre-generate HORIZON_MONTHS random scenario indices using SCENARIO_SEED
+- **Random mode:** Generate scenario indices on-the-fly for each portfolio and curve
 
-**Step 4: Generate Portfolios Month by Month**
+**Step 5: Load Glidepath Curves**
+- Load CVaR limits for each curve from step 01
+
+**Step 6: Process Each Curve (months in parallel)**
 
 For each month t:
-
 1. Get the CVaR limit for month t from the glidepath
 2. Get the simulated returns for month t (all N_TRAJ scenarios)
 3. Use Hit-and-Run algorithm to generate N_PORTFOLIOS_PER_MONTH portfolios where CVaR < limit
-4. Calculate each portfolio's CVaR using all N_TRAJ scenarios
-5. Calculate each portfolio's return using the single selected scenario for month t
-6. Store the CVaR and return values
+4. Calculate each portfolio's return based on scenario selection mode:
+   - Fixed mode: All portfolios use the single pre-selected scenario for month t
+   - Random mode: Each portfolio uses its own randomly assigned scenario
+5. Store the return values
 
-**Step 5: Build Trajectories**
+**Step 7: Build Trajectories**
 - Trajectory i is formed by connecting portfolio i from each month
-- Each trajectory has HORIZON_MONTHS CVaR values and HORIZON_MONTHS return values
+- Each trajectory has HORIZON_MONTHS return values
 
-**Step 6: Export to Excel**
-- Save CVaR matrix (N_PORTFOLIOS_PER_MONTH × HORIZON_MONTHS) - transposed format
-- Save returns matrix (N_PORTFOLIOS_PER_MONTH × HORIZON_MONTHS) - transposed format
+**Step 8: Export to Excel**
+- Save returns matrix (N_PORTFOLIOS_PER_MONTH × HORIZON_MONTHS) in transposed format
 
-### Key Feature: Single Scenario per Month
+### Scenario Selection Modes
 
-This implementation uses an important modification: each month uses a single randomly selected scenario instead of averaging over all scenarios.
+The module supports two modes for assigning market scenarios to portfolios when calculating returns.
+
+#### Fixed Scenario Mode (USE_RANDOM_SCENARIOS = False)
+
+Each month uses a single randomly selected scenario for all portfolios.
 
 **How it works:**
 
 ```python
+# Pre-generate scenario indices once (at start of simulation)
+scenario_indices = rng_scenario.integers(0, N_TRAJ, size=HORIZON_MONTHS)
+
 # For each month t:
-scenario_idx = scenario_indices[t]  # Random index (0 to N_TRAJ-1)
+scenario_idx = scenario_indices[t]  # Single pre-selected index (0 to N_TRAJ-1)
 selected_scenario_returns = month_returns[scenario_idx, :]  # One scenario
-portfolio_returns = portfolios @ selected_scenario_returns  # Calculate returns
+portfolio_returns = portfolios @ selected_scenario_returns  # All portfolios use same scenario
 ```
 
-**Why use a single scenario?**
+**Characteristics:**
+- All portfolios in month t face the same market condition
+- All curves share the same HORIZON_MONTHS-length scenario sequence
+- Pre-selected scenarios are generated once using SCENARIO_SEED
 
-1. **Fair comparison:** All portfolios in month t face the same market condition. Portfolio A didn't get lucky with good scenarios while Portfolio B got unlucky.
+**Advantages:**
 
-2. **Comparable trajectories:** You can directly compare trajectory performance because they all experienced the same market path.
+1. **Fair comparison:** Portfolio A and Portfolio B face identical market conditions. No portfolio gets lucky or unlucky with random scenario assignment.
+
+2. **Comparable trajectories:** Direct performance comparison is meaningful because all trajectories experienced the same market path.
 
 3. **Reproducible:** Using the same SCENARIO_SEED gives the same market realizations every time.
 
-**Note:** CVaR is still calculated using all N_TRAJ scenarios to ensure portfolios satisfy risk constraints. Only the final returns use a single scenario.
+**Use when:** Comparing portfolio strategies under identical market conditions.
+
+#### Random Scenario Mode (USE_RANDOM_SCENARIOS = True)
+
+Each portfolio uses a different randomly selected scenario.
+
+**How it works:**
+
+```python
+# For each month t and each portfolio i:
+random_scenario_idx = random_integers(0, N_TRAJ-1)  # Different for each portfolio
+selected_scenario_returns = month_returns[random_scenario_idx, :]
+portfolio_returns[i] = portfolio[i] @ selected_scenario_returns
+```
+
+**Characteristics:**
+- Each portfolio in month t faces a different market condition
+- Each curve has its own independent random scenario sequence
+- Scenarios are generated on-the-fly using curve-specific and month-specific seeds
+
+**Advantages:**
+
+1. **Maximum diversity:** Explores N_PORTFOLIOS_PER_MONTH different market realizations per month.
+
+2. **Independent curves:** Each curve experiences different market paths, avoiding systematic bias.
+
+3. **Reproducible:** Using the same RANDOM_SCENARIO_SEED gives the same random assignments every time.
+
+**Use when:** Maximizing exploration of different market realizations across portfolios and curves.
+
+#### Comparison
+
+| Aspect | Fixed Mode | Random Mode |
+|--------|-----------|-------------|
+| Portfolios per month | Same scenario | Different scenarios |
+| Curves | Share scenario sequence | Independent scenario sequences |
+| Total scenarios used | HORIZON_MONTHS (shared across all curves) | N_PORTFOLIOS × HORIZON_MONTHS per curve |
+| Best for | Strategy comparison | Maximum diversity |
+
+**Note:** CVaR constraint enforcement uses all N_TRAJ scenarios during the Hit-and-Run generation process in both modes. The scenario selection mode only affects the final return calculation.
 
 ### Hit-and-Run Algorithm
 
@@ -308,23 +400,34 @@ The Hit-and-Run algorithm efficiently generates random portfolios that satisfy t
    - Pick a random point along that line segment
    - Move to that new portfolio
 
-3. **Burn-in period:** Discard the first 50 portfolios to ensure we're sampling from the entire feasible region
+3. **Burn-in period:** Discard the first 20 portfolios to ensure we're sampling from the entire feasible region
 
 4. **Collect samples:** Keep the next N_PORTFOLIOS_PER_MONTH portfolios
 
-### CVaR Calculation
+**Efficiency:** CVaR is only calculated during the Hit-and-Run process to validate feasibility. Once portfolios are generated, they are guaranteed to satisfy the constraint, so no post-validation is needed.
+
+### CVaR Calculation (During Generation)
+
+CVaR (Conditional Value at Risk) measures the average loss in the worst-case scenarios.
 
 For a portfolio with weights w, CVaR is calculated as:
 
 1. Calculate portfolio returns for all N_TRAJ scenarios: r_p = R · w
 2. Convert returns to losses: L = -r_p
 3. Find the worst α tail (e.g., worst 10% if α=0.90)
-4. CVaR = average of the losses in that tail
+4. CVaR = average of the losses in that tail (reported as positive magnitude)
 
 **Example with α=0.90 and N_TRAJ=10000:**
-- Sort the 10000 portfolio returns from worst to best
-- Take the worst 1000 scenarios (bottom 10%)
-- CVaR = average loss in those 1000 worst scenarios
+- Calculate 10000 portfolio returns
+- Convert to losses (multiply by -1)
+- Sort losses from largest to smallest
+- Take the worst 1000 scenarios (top 10% largest losses)
+- CVaR = average of those 1000 worst losses
+
+**Important:** CVaR is reported as a positive value representing the magnitude of the average loss in the tail. For example:
+- CVaR = 0.07 means "average loss in worst 10% scenarios is 7%"
+- Target CVaR = 0.08 means "allow up to 8% average loss"
+- Constraint CVaR < target_cvar compares magnitudes: 0.07 < 0.08 ✓
 
 ### Asset Return Simulation Methods
 
@@ -379,8 +482,12 @@ The `f_make_psd()` function ensures the covariance matrix is valid:
 
 The HORIZON_MONTHS parameter must match the number of months in step 01.
 
-**Example:**
-- Step 01: T_START_YEARS=25, T_END_YEARS=65 → 480 months
+**Example with current configuration (female retirement):**
+- Step 01: T_START_YEARS=25, T_END_YEARS=60 → MONTHS=420
+- Step 02: HORIZON_MONTHS must equal 420
+
+**Example with male retirement:**
+- Step 01: T_START_YEARS=25, T_END_YEARS=65 → MONTHS=480
 - Step 02: HORIZON_MONTHS must equal 480
 
 **What happens if they don't match:**
@@ -393,7 +500,18 @@ The code includes built-in validation:
 - Checks that SIMULATION_METHOD is either "mvn" or "copula"
 - Checks that ALPHA_CVAR is between 0 and 1
 - Checks that N_PORTFOLIOS_PER_MONTH ≥ 1
-- Warns if N_TRAJ < 100 (unreliable CVaR estimates)
+- Warns if N_TRAJ < 100 (may produce unstable results)
+
+### Configuration for Different Gender Profiles
+
+**Current configuration:** Female retirement age (60 years, 420 months)
+
+**To configure for male profiles:**
+```python
+HORIZON_MONTHS = 480  # 40 years (65 - 25)
+```
+
+This must match the corresponding change in step 01.
 
 ## Next Step
 

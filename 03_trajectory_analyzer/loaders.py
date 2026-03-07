@@ -111,9 +111,9 @@ def get_available_curves(hit_run_dir: str) -> List[str]:
 def load_trajectory_results(
     hit_run_dir: str,
     curve_name: str
-) -> Tuple[pd.DataFrame, pd.DataFrame, Dict]:
+) -> Tuple[pd.DataFrame, Dict]:
     """
-    Load trajectory results (returns and CVaR) for a specific curve.
+    Load trajectory results (returns) for a specific curve.
     
     IMPORTANT: Files are stored as (N_TRAJECTORIES × MONTHS) but are
     TRANSPOSED after loading to (MONTHS × N_TRAJECTORIES) for calculations.
@@ -133,9 +133,6 @@ def load_trajectory_results(
     returns_df : pd.DataFrame
         Monthly returns (rows=months, columns=trajectories)
         Shape: (MONTHS, N_TRAJECTORIES)
-    cvar_df : pd.DataFrame
-        Monthly CVaR (rows=months, columns=trajectories)
-        Shape: (MONTHS, N_TRAJECTORIES)
     metadata : Dict
         Dictionary with metadata (simulation_method, n_scenarios, etc.)
     """
@@ -147,28 +144,18 @@ def load_trajectory_results(
     # Load returns sheet (stored as: rows=trajectories, columns=months)
     returns_df = pd.read_excel(file_path, sheet_name="returns", index_col=0)
     
-    # Load CVaR sheet (stored as: rows=trajectories, columns=months)
-    cvar_df = pd.read_excel(file_path, sheet_name="cvar", index_col=0)
-    
-    # Verify dimensions match
-    if returns_df.shape != cvar_df.shape:
-        raise ValueError(
-            f"Shape mismatch: returns {returns_df.shape} vs cvar {cvar_df.shape}"
-        )
-    
     # TRANSPOSE to maintain expected format for calculations
     # Storage format: (N_TRAJECTORIES × MONTHS)
     # Calculation format: (MONTHS × N_TRAJECTORIES)
     returns_df = returns_df.T
-    cvar_df = cvar_df.T
     
     # Extract metadata
     # After transpose: shape[0] = months, shape[1] = trajectories
     metadata = {
         'n_months': returns_df.shape[0],
         'n_trajectories': returns_df.shape[1],
-        'simulation_method': 'unknown',  # Could be extracted from filename or metadata sheet
-        'n_scenarios': np.nan  # Could be extracted from metadata sheet if available
+        'simulation_method': 'unknown',
+        'n_scenarios': np.nan
     }
     
     # Try to load metadata sheet if it exists (optional)
@@ -181,12 +168,11 @@ def load_trajectory_results(
     except:
         pass  # Metadata sheet not required
     
-    return returns_df, cvar_df, metadata
+    return returns_df, metadata
 
 
 def validate_trajectory_data(
-    returns_df: pd.DataFrame,
-    cvar_df: pd.DataFrame
+    returns_df: pd.DataFrame
 ) -> bool:
     """
     Validate that trajectory data is consistent and valid.
@@ -195,8 +181,6 @@ def validate_trajectory_data(
     -----------
     returns_df : pd.DataFrame
         Monthly returns
-    cvar_df : pd.DataFrame
-        Monthly CVaR
     
     Returns:
     --------
@@ -205,25 +189,12 @@ def validate_trajectory_data(
     """
     # Check for NaN values
     if returns_df.isna().any().any():
-        print(" Warning: NaN values found in returns")
-        return False
-    
-    if cvar_df.isna().any().any():
-        print(" Warning: NaN values found in CVaR")
-        return False
-    
-    # Check shapes match
-    if returns_df.shape != cvar_df.shape:
-        print(" Warning: Shape mismatch between returns and CVaR")
+        print("   Warning: NaN values found in returns")
         return False
     
     # Check for reasonable values
     if (returns_df < -1).any().any() or (returns_df > 1).any().any():
-        print(" Warning: Extreme return values detected")
-        return False
-    
-    if (cvar_df < 0).any().any():
-        print(" Warning: Negative CVaR values detected")
+        print("   Warning: Extreme return values detected")
         return False
     
     return True

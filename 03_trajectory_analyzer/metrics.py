@@ -72,6 +72,37 @@ def calculate_trajectory_statistics(
     return stats
 
 
+def calculate_pct_above_targets(
+    annualized_returns: np.ndarray,
+    thresholds: List[float]
+) -> Dict[str, float]:
+    """
+    Calculate percentage of trajectories above each target return threshold.
+
+    Parameters:
+    -----------
+    annualized_returns : np.ndarray
+        Annualized returns for each trajectory (N,)
+    thresholds : List[float]
+        List of target return thresholds (e.g., [0.04, 0.055, 0.07])
+
+    Returns:
+    --------
+    pct_dict : Dict[str, float]
+        Dictionary with keys like 'pct_above_4.00%', 'pct_above_5.50%', etc.
+    """
+    n_total = len(annualized_returns)
+    pct_dict = {}
+
+    for threshold in thresholds:
+        n_above = np.sum(annualized_returns > threshold)
+        pct = n_above / n_total if n_total > 0 else 0.0
+        key = f"pct_above_{threshold * 100:.2f}%"
+        pct_dict[key] = float(pct)
+
+    return pct_dict
+
+
 def calculate_percentiles(
     annualized_returns: np.ndarray,
     percentiles: List[int]

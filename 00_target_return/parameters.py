@@ -22,7 +22,7 @@ class PensionParameters:
         self.age_start_work_female = 25   # Age when women start working
         self.age_retire_male = 65         # Legal retirement age for men
         self.age_retire_female = 60       # Legal retirement age for women
-        self.life_expectancy_male = 86    # Life expectancy for men
+        self.life_expectancy_male = 88    # Life expectancy for men
         self.life_expectancy_female = 90  # Life expectancy for women
         
         # ========================================
@@ -30,7 +30,7 @@ class PensionParameters:
         # ========================================
         self.salary_initial_male = 20.0    # Initial salary for men in UF
         self.salary_initial_female = 20.0  # Initial salary for women in UF
-        self.contribution_rate = 0.16      # Mandatory contribution rate (15%)
+        self.contribution_rate = 0.16      # Mandatory contribution rate (16%)
         self.contribution_ceiling = 87.8   # Contribution ceiling in UF (official value)
         self.salary_growth_real = 0.0125   # Real annual salary growth (1.25% per OECD)
         
@@ -39,12 +39,16 @@ class PensionParameters:
         # ========================================
         # Return during accumulation phase: this parameter will be found via binary search
         # Return after retirement (real, above UF inflation)
-        self.return_post_retirement = 0.025  # 2.5% real (equivalent to UF+2.5%)
+        self.return_post_retirement = 0.032  # 2.5% real (equivalent to UF+2.5%)
         
         # ========================================
         # TARGET PARAMETERS
         # ========================================
-        self.replacement_rate_target = 0.60  # Target replacement rate (60%)
+        self.replacement_rate_target = 0.63  # Target replacement rate (63%)
+        
+        # Number of months to average for replacement rate calculation
+        # Options: 12 (last year) or 120 (last 10 years)
+        self.months_for_replacement_rate = 120  # 12 or 120 months
         
         # ========================================
         # CONTRIBUTION DENSITY
@@ -55,11 +59,11 @@ class PensionParameters:
         
         # Contribution density for men
         self.contribution_density_male_no_gaps = 1.0    # 100% - no gaps
-        self.contribution_density_male_with_gaps = 0.583  # 58.3% - with gaps
+        self.contribution_density_male_with_gaps = 0.60  # 58.3% - with gaps
         
         # Contribution density for women
         self.contribution_density_female_no_gaps = 1.0   # 100% - no gaps
-        self.contribution_density_female_with_gaps = 0.496 # 60% - with gaps
+        self.contribution_density_female_with_gaps = 0.60 # 49.6% - with gaps
         
         # ========================================
         # BINARY SEARCH PARAMETERS
@@ -81,6 +85,7 @@ class PensionParameters:
             f"  Contribution ceiling: {self.contribution_ceiling} UF\n"
             f"  Real salary growth: {self.salary_growth_real*100}%\n"
             f"  Target replacement rate: {self.replacement_rate_target*100}%\n"
+            f"  Months for replacement rate: {self.months_for_replacement_rate}\n"
             f"  Contribution density M (no gaps/gaps): {self.contribution_density_male_no_gaps}/{self.contribution_density_male_with_gaps}\n"
             f"  Contribution density F (no gaps/gaps): {self.contribution_density_female_no_gaps}/{self.contribution_density_female_with_gaps}\n"
             f")"

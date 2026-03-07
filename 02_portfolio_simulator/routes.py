@@ -17,20 +17,32 @@ def input_glidepaths_path() -> str:
     """
     return op.join(BASE_DIR, "outputs", "glidepaths_universe.xlsx")
 
-def output_hit_run_dir() -> str:
+def output_hit_run_dir(run_label: str) -> str:
     """
-    Directory for Hit-and-Run results.
+    Directory for Hit-and-Run results, scoped by run_label.
+    
+    Parameters:
+    -----------
+    run_label : str
+        Unique label for this run (e.g., 'juan_333')
+    
+    Returns:
+    --------
+    str
+        Path to the output directory: outputs/hit_run_results/<run_label>/
     """
-    return op.join(BASE_DIR, "outputs", "hit_run_results")
+    return op.join(BASE_DIR, "outputs", "hit_run_results", run_label)
 
-def output_hit_run_file(curve_name: str) -> str:
+def output_hit_run_file(curve_name: str, run_label: str) -> str:
     """
-    Full path for a curve's results file.
+    Full path for a curve's results file, scoped by run_label.
     
     Parameters:
     -----------
     curve_name : str
         Name of the curve (e.g., 'curve_0001')
+    run_label : str
+        Unique label for this run (e.g., 'juan_333')
     
     Returns:
     --------
@@ -38,4 +50,4 @@ def output_hit_run_file(curve_name: str) -> str:
         Full path to the Excel file
     """
     filename = f"{curve_name}_results.xlsx"
-    return op.join(output_hit_run_dir(), filename)
+    return op.join(output_hit_run_dir(run_label), filename)
