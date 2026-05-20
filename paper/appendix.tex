@@ -16,7 +16,7 @@ F(t)=\left\{
 \end{equation}
 where the estimated CVaR is computed from the $S$ scalar portfolio returns under the scenarios for month $t$,
 \begin{equation}
-\delta_s = \Omega^{\top}R_{s,t}, \qquad s=1,\ldots,S,
+\delta_{s,t} = \Omega^{\top}R_{s,t}, \qquad s=1,\ldots,S,
 \end{equation}
 by sorting them from lowest to highest and averaging the worst 10\%, since we work with a 90\% confidence level.
 
@@ -74,7 +74,7 @@ A component-wise clip to $[0,1]$ and renormalization are applied to correct for 
 
 \subsubsection{Burn-in and Sample Collection}
 
-The first $B$ iterations of the chain are discarded (burn-in), as these early draws are still correlated with the starting point $\Omega^{(0)}$ and are not representative of the stationary distribution. We use $B=20$ in our implementation. After burn-in, the subsequent $I$ points are stored as the $I$ feasible allocations for month $t$.
+The first $b_{\mathrm{burn}}$ iterations of the chain are discarded (burn-in), as these early draws are still correlated with the starting point $\Omega^{(0)}$ and are not representative of the stationary distribution. We use $b_{\mathrm{burn}}=20$ in our implementation. After burn-in, the subsequent $I$ points are stored as the $I$ feasible allocations for month $t$.
 
 An independent chain is run for each month $t$, so allocations from different months share no internal MCMC state.
 
