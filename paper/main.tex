@@ -12,6 +12,7 @@
 \usepackage{tabularx}
 \usepackage{tikz}
 \usepackage{xcolor}
+\usepackage{xurl}
 \usepackage[hidelinks]{hyperref}
 
 \usetikzlibrary{arrows.meta}
@@ -165,7 +166,7 @@ An asset allocation $\Omega$ is deemed feasible for month $t$, with respect to t
 These scalar returns are then sorted from lowest to highest, and the CVaR is estimated as the average of the worst ten percent of them, since we work with a 90\% confidence level.
 
 \paragraph{Feasible asset-allocations array.}
-Using a Monte Carlo sampling algorithm based on the Hit-and-Run method (see Appendix~\ref{app:hit-and-run}) \cite{smith1984}, we construct a feasible asset allocation array $\Omega$ of dimension $I \times Q$, where $I$ denotes the number of feasible portfolios to be constructed. Each entry $(i,t)$ of this array corresponds to a $N$-dimensional vector $\Omega$ that satisfies two conditions: (a) its CVaR limit is below $L(t)$, the limit specified by the glidepath for month $t$; and (b) the set of return vectors used to compute its CVaR corresponds to column $t$ of the return array $\mathcal{R}$. That is, the set of return vectors employed to calculate the CVaR for month $t$ is $\{R_{s,t}\}_{s=1}^{S}$.
+Using a Monte Carlo sampling algorithm based on the Hit-and-Run method (see Appendix~\ref{app:hit-and-run}; the algorithm follows \citet{smith1984}), we construct a feasible asset allocation array $\Omega$ of dimension $I \times Q$, where $I$ denotes the number of feasible portfolios to be constructed. Each entry $(i,t)$ of this array corresponds to a $N$-dimensional vector $\Omega$ that satisfies two conditions: (a) its CVaR limit is below $L(t)$, the limit specified by the glidepath for month $t$; and (b) the set of return vectors used to compute its CVaR corresponds to column $t$ of the return array $\mathcal{R}$. That is, the set of return vectors employed to calculate the CVaR for month $t$ is $\{R_{s,t}\}_{s=1}^{S}$.
 
 \paragraph{Return scenarios and feasible portfolios.}
 We assume that the TDF manager rebalances the portfolio monthly. As mentioned before, for a given scenario index $s$, we define a return scenario as a sequence of $Q$ return vectors of dimension $N$, that is, $\{R_{s,1},\ldots,R_{s,Q}\}$. From the returns matrix we have $S$ such scenarios, where each row $s$ of that matrix defines one such scenario.
