@@ -13,7 +13,7 @@ T_END_MONTHS   = T_END_YEARS * 12
 # Total months in the horizon
 MONTHS = T_END_MONTHS - T_START_MONTHS  
 
-# Transition start age t_A (years). — full range 40..50
+# Transition start age t_A (years). — full range 30..66
 T_A_YEARS_VALUES = list(range(30, 66))
 
 # Independent ranges for A and B (CVaR caps) - for declining glidepaths (A > B)
@@ -21,7 +21,8 @@ A_MIN, A_MAX, A_STEP = 0.05, 0.10, 0.01
 B_MIN, B_MAX, B_STEP = 0.03, 0.03, 0.01
 
 # Flat glidepath levels (A = B) - set to empty list [] to disable flat glidepaths
-FLAT_LEVELS = [0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+#FLAT_LEVELS = [0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+FLAT_LEVELS = []
 
 # Output filename (Excel)
 OUTPUT_XLSX = "glidepaths_universe.xlsx"

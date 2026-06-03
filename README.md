@@ -1,413 +1,299 @@
-# fintual-clapes: CVaR Glidepath Analysis System
+# CVaR Glidepath Portfolio Simulator
 
-A comprehensive Python-based system for analyzing optimal retirement investment strategies using CVaR-constrained portfolio glidepaths.
-
-## What Does This System Do?
-
-This system answers two key questions:
-
-1. **"What investment return do I need to achieve adequate retirement income?"**
-2. **"What's the optimal way to adjust portfolio risk as I approach retirement?"**
-
-The system combines pension planning analysis with portfolio optimization to provide data-driven retirement strategies.
-
-## System Overview
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        FINTUAL-CLAPES SYSTEM                         │
-│                                                                      │
-│  Input: Historical asset returns (returns.csv)                       │
-│                                                                      │
-│  ┌────────────────────────────────────────────────────────────┐      │
-│  │  Step 00: Target Return Calculator                         │      │
-│  │  - Calculates required returns for pension adequacy        │      │
-│  │  - Models Chilean pension system (AFP)                     │      │
-│  │  - Output: target_return.xlsx                              │      │
-│  │  Purpose: Provides calibration benchmark for Step 03       │      │
-│  └────────────────────────────────────────────────────────────┘      │
-│                                                                      │
-│  ┌────────────────────────────────────────────────────────────┐      │
-│  │  Step 01: Glidepath Generator                              │      │
-│  │  - Generates universe of CVaR glidepath curves             │      │
-│  │  - Defines risk limits over investor's lifetime            │      │
-│  │  - Output: glidepaths_universe.xlsx                        │      │
-│  └────────────────────────────────────────────────────────────┘      │
-│                            ↓                                         │
-│  ┌────────────────────────────────────────────────────────────┐      │
-│  │  Step 02: Portfolio Simulator                              │      │
-│  │  - Simulates portfolio trajectories for each glidepath     │      │
-│  │  - Uses Hit-and-Run algorithm for CVaR constraints         │      │
-│  │  - Output: curve_XXXX_results.xlsx (per curve)             │      │
-│  └────────────────────────────────────────────────────────────┘      │
-│                            ↓                                         │
-│  ┌────────────────────────────────────────────────────────────┐      │
-│  │  Step 03: Trajectory Analyzer                              │      │
-│  │  - Analyzes performance of all trajectories                │      │
-│  │  - Ranks glidepaths by success rate                        │      │
-│  │  - Calculates cumulative risk from CVaR limits             │      │
-│  │  - Identifies best strategies                              │      │
-│  │  - Output: trajectory_analysis_summary.xlsx                │      │
-│  └────────────────────────────────────────────────────────────┘      │
-│                                                                      │
-│  Final Output: Optimal glidepath recommendations + supporting data   │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-## Module Overview
-
-### 00_target_return - Chilean Pension System Required Return Calculator
-
-**Purpose:** Calculate the investment return needed to achieve adequate retirement income in the Chilean pension system.
-
-**What it does:**
-- Models the complete AFP pension lifecycle (contributions + returns + pension payout)
-- Simulates 4 demographic profiles (male/female, with/without contribution gaps)
-- Finds the required annual return to achieve 63% replacement rate
-- Provides benchmark values for calibrating Step 03
-
-**When to use:** Before running Step 03, to determine realistic return thresholds based on pension adequacy.
-
-**Key output:** Required returns for different profiles (e.g., "Male without gaps needs 5.8% annual return")
-
-**Connection to other steps:** The required returns from this module are used as TARGET_RETURN_THRESHOLD in Step 03.
-
-**Current configuration:** Uses 120 months (last 10 years) for replacement rate calculation.
+Simulation pipeline for generating and evaluating CVaR-constrained glidepath investment strategies in the context of the Chilean AFP pension system. The pipeline produces a ranked comparison of hundreds of glidepath strategies based on their probability of achieving pension-adequate returns across thousands of simulated market scenarios.
 
 ---
 
-### 01_glidepath_generator - CVaR Glidepath Universe Generator
+## What This Repository Does
 
-**Purpose:** Generate all possible CVaR glidepath strategies to test.
+The core question this project answers is: **which glidepath investment strategy maximizes the probability that an AFP affiliate achieves a sufficient retirement return?**
 
-**What it does:**
-- Creates hundreds of different "risk reduction rules" (glidepaths)
-- Each glidepath defines maximum allowed risk (CVaR) at each age
-- Starts with higher risk when young, transitions to lower risk at retirement
-- Comprehensive grid search over parameters (A, B, t_A)
+A glidepath strategy defines how much investment risk (measured by CVaR) is allowed at each age — higher risk when young, gradually reduced as retirement approaches. This project generates a universe of such strategies, samples portfolios that respect their constraints, evaluates their performance under many simulated market scenarios, and produces a ranked comparison table.
 
-**When to use:** First step of the main analysis pipeline.
-
-**Key output:** Excel file with all glidepath curves (each column = one strategy)
-
-**Current configuration:** 
-- Female retirement age (60 years)
-- Horizon: 420 months (35 years, ages 25-60)
-- 378 total curves (372 declining + 6 flat glidepaths)
+Module `00` provides a separate but related calculation: the annual return that an AFP affiliate actually needs to achieve a 63% pension replacement rate, which calibrates the performance thresholds used in module `04`.
 
 ---
 
-### 02_portfolio_simulator - Portfolio Trajectory Generator with Hit-and-Run
+## Gender Profile Configuration
 
-**Purpose:** Generate actual portfolio trajectories that comply with each glidepath's risk constraints.
+Several modules have parameters that depend on whether you are running the pipeline for **men** or **women**. Before running, ensure these values are consistent across all modules:
 
-**What it does:**
-- For each glidepath from Step 01, creates many portfolio paths
-- Uses Hit-and-Run algorithm to efficiently sample CVaR-constrained portfolios
-- Simulates realistic market conditions using historical returns (MVN or Copula method)
-- Supports two scenario modes:
-  - Fixed mode: All portfolios in a month use same scenario (fair comparison)
-  - Random mode: Each portfolio uses different scenario (maximum diversity)
-- Saves monthly returns for each trajectory
+| Parameter | Men | Women | Where to set it |
+|---|---|---|---|
+| `T_END_YEARS` | 65 | 60 | `01_glidepath_generator/config.py` |
+| `T_B_YEAR` | 65 | 60 | `01_glidepath_generator/config.py` |
+| `HORIZON_MONTHS` | 480 | 420 | `02_hit_and_run/main.py` and `03_scenario_evaluator/main.py` |
+| Retirement ages / life expectancy | male values | female values | `00_target_return/parameters.py` |
 
-**When to use:** After Step 01, to generate the portfolio data for analysis.
-
-**Key output:** Excel files per curve with monthly returns for each trajectory (transposed format)
-
-**Current configuration:**
-- Copula simulation method
-- 10,000 portfolios per month
-- 10,000 Monte Carlo scenarios
-- 420 months horizon
-- Fixed scenario mode (USE_RANDOM_SCENARIOS = False)
-- 15 parallel processes
-
-**Note:** Portfolio weights (asset allocations) are NOT saved - only returns are stored.
-
----
-
-### 03_trajectory_analyzer - Portfolio Trajectory Performance Analysis
-
-**Purpose:** Analyze which glidepath strategies lead to the best retirement outcomes.
-
-**What it does:**
-- Calculates cumulative annualized returns for all trajectories
-- Supports 7 analysis modes (original, sorted, permuted trajectories, and combinations)
-- Identifies success rate (% of trajectories exceeding target return)
-- Calculates cumulative risk (area under CVaR curve from Step 01)
-- Ranks all glidepaths by performance
-- Combines results with glidepath parameters for interpretation
-
-**When to use:** After Step 02, to identify optimal strategies.
-
-**Key output:** Single Excel file with 1 sheet ranking all curves by success rate and showing cumulative risk
-
-**Current configuration:**
-- Analysis Mode 3: Permuted trajectories only
-- TARGET_RETURN_THRESHOLD: 5.5% (female with gaps profile)
-- Random seed: 42 (reproducible permutations)
-- Percentiles: [10, 25, 50, 75, 90]
-
-**Connection to Step 00:** Use TARGET_RETURN_THRESHOLD from Step 00 to define "success"
-
-**Connection to Step 01:** Uses CVaR limits from glidepaths to calculate total risk exposure
+**Rule of thumb:** set the gender profile in module 01 first, then propagate `HORIZON_MONTHS` to modules 02 and 03, and run module 00 with the matching demographic parameters to obtain the correct `TARGET_RETURN_THRESHOLDS` for module 04.
 
 ---
 
 ## Repository Structure
 
 ```
-fintual-clapes/
-├── README.md                        # This file
-├── returns.csv                      # Historical asset returns (REQUIRED)
+repo_root/
+├── returns.csv                          # Historical asset returns (required input)
+├── outputs/                             # All generated files (created automatically)
+│   ├── target_return.xlsx               # Output of module 00
+│   ├── glidepaths_universe.xlsx         # Output of module 01
+│   ├── hit_and_run_matrices/            # Output of module 02 (one .h5 per curve)
+│   ├── scenario_results/                # Output of module 03 (one .h5 per curve)
+│   └── analysis_full_pool/              # Output of module 04
+│       └── analysis_full_pool.xlsx
 │
-├── outputs/                         # All output files
-│   ├── target_return.xlsx           # From Step 00
-│   ├── glidepaths_universe.xlsx     # From Step 01
-│   ├── hit_run_results/             # From Step 02
-│   │   ├── curve_0001_results.xlsx
-│   │   └── ...
-│   └── trajectory_analysis_summary.xlsx  # From Step 03
-│
-├── 00_target_return/                # Pension system analysis
-│   ├── parameters.py                # ← Edit parameters here
-│   ├── main.py
+├── 00_target_return/                    # Required return calculator (standalone)
+│   ├── parameters.py
 │   ├── formulas.py
 │   ├── exporters.py
+│   ├── main.py
+│   ├── __init__.py
 │   └── README.md
 │
-├── 01_glidepath_generator/          # Glidepath generation
-│   ├── config.py                    # ← Edit parameters here
+├── 01_glidepath_generator/              # CVaR glidepath universe generator
+│   ├── config.py
 │   ├── main.py
 │   ├── cvar_piecewise.py
 │   ├── param_grid.py
 │   ├── universe.py
 │   ├── utils.py
 │   ├── routes.py
+│   ├── __init__.py
 │   └── README.md
 │
-├── 02_portfolio_simulator/          # Portfolio simulation
-│   ├── main.py                      # ← Edit parameters here
-│   ├── simulate_asset_returns.py
+├── 02_hit_and_run/                      # CVaR-constrained portfolio sampler
+│   ├── main.py
 │   ├── cvar_portfolio_sampler.py
-│   ├── exporters.py
+│   ├── simulate_asset_returns.py
+│   ├── make_psd.py
 │   ├── loaders.py
+│   ├── routes.py
+│   ├── __init__.py
+│   └── README.md
+│
+├── 03_scenario_evaluator/               # Portfolio trajectory evaluator
+│   ├── main.py
+│   ├── simulate_asset_returns.py
 │   ├── make_psd.py
 │   ├── routes.py
+│   ├── __init__.py
 │   └── README.md
 │
-└── 03_trajectory_analyzer/          # Performance analysis
-    ├── main.py                      # ← Edit parameters here
+└── 04_full_pool_analyzer/               # Final aggregation and ranking
+    ├── main.py
     ├── loaders.py
-    ├── metrics.py
-    ├── transformations.py
-    ├── exporters.py
     ├── routes.py
+    ├── __init__.py
     └── README.md
 ```
 
-## Quick Start
+---
 
-### Prerequisites
+## Pipeline Overview
 
-- Python 3.8+
-- Required libraries: pandas, numpy, scipy, xlsxwriter, openpyxl
+The four main modules run in sequence. Module `00` is independent and should be run before module `04` to calibrate the return thresholds.
 
-### Installation
+```
+returns.csv
+    │
+    ▼
+┌─────────────────────────┐
+│  01_glidepath_generator │  Generates all CVaR glidepath curves
+│  config.py              │  → outputs/glidepaths_universe.xlsx
+└────────────┬────────────┘
+             │
+             ▼
+┌─────────────────────────┐
+│  02_hit_and_run         │  Samples CVaR-constrained portfolios
+│  main.py                │  → outputs/hit_and_run_matrices/curve_XXXX.h5
+└────────────┬────────────┘       (one file per curve)
+             │
+             ▼
+┌─────────────────────────┐
+│  03_scenario_evaluator  │  Evaluates portfolio trajectories
+│  main.py                │  → outputs/scenario_results/curve_XXXX.h5
+└────────────┬────────────┘       (one file per curve)
+             │
+             ▼
+┌─────────────────────────┐
+│  04_full_pool_analyzer  │  Aggregates and ranks all curves
+│  main.py                │  → outputs/analysis_full_pool/analysis_full_pool.xlsx
+└─────────────────────────┘
 
-```bash
-pip install pandas numpy scipy xlsxwriter openpyxl
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+
+┌─────────────────────────┐
+│  00_target_return       │  Standalone: computes required return
+│  main.py                │  → outputs/target_return.xlsx
+└─────────────────────────┘  Used to calibrate thresholds in module 04
 ```
 
-### Required Input File
+---
 
-Place your historical asset returns in `returns.csv` at the repository root. Format:
-- Rows: Time periods (months)
-- Columns: Assets
-- Values: Monthly returns (decimal format, e.g., 0.02 for 2%)
+## Module Descriptions
 
-### Running the System
+### `00_target_return` — Required Return Calculator
 
-**Step 0: Calculate Required Returns (Optional but Recommended)**
+**Standalone module.** Simulates the complete AFP pension lifecycle for four demographic profiles (male/female, with/without contribution gaps) and uses binary search to find the annual investment return required to achieve a 63% pension replacement rate.
+
+**Input:** No external files. All inputs are parameters defined in `parameters.py`.
+
+**Output:** `outputs/target_return.xlsx` with 7 sheets: parameters, summary of required returns, monthly accumulation detail per profile, and a sensitivity analysis.
+
+**How it connects to the pipeline:** The `Required Return (%)` values in the Summary sheet are used to manually set `TARGET_RETURN_THRESHOLDS` in `04_full_pool_analyzer/main.py`. This allows interpreting the final results as: "what fraction of portfolio trajectories achieve the return needed for pension adequacy?"
+
+**Key parameters to edit (`parameters.py`):**
+- `age_retire_male` / `age_retire_female`: retirement ages (65 for men, 60 for women)
+- `life_expectancy_male` / `life_expectancy_female`: life expectancy by gender
+- `salary_initial_male` / `salary_initial_female`: starting salary in UF
+- `contribution_rate`, `contribution_ceiling`: AFP contribution rules
+- `contribution_density_*_with_gaps` / `*_no_gaps`: fraction of months contributing
+- `replacement_rate_target`: target pension replacement rate (default: 63%)
+- `months_for_replacement_rate`: reference window for average salary (12 or 120 months)
+
+---
+
+### `01_glidepath_generator` — CVaR Glidepath Universe Generator
+
+Generates all valid combinations of CVaR glidepath parameters and exports them as a single Excel file. Each glidepath defines a maximum CVaR limit for every month of the investment horizon, following a three-phase shape: constant high risk → linear transition → constant low risk.
+
+**Input:** No external files. All inputs are parameters defined in `config.py`.
+
+**Output:** `outputs/glidepaths_universe.xlsx`. One column per curve (`curve_0001`, `curve_0002`, ...). Rows: 6 parameter rows (`t_start`, `t_A`, `A`, `B`, `t_B`, `t_end`) followed by one row per month (`Month_1` ... `Month_N`).
+
+**Key parameters to edit (`config.py`):**
+- `T_END_YEARS`, `T_B_YEAR`: retirement age — **65 for men, 60 for women**
+- `T_START_YEARS`: starting age (default: 25)
+- `T_A_YEARS_VALUES`: possible transition start ages
+- `A_MIN`, `A_MAX`, `A_STEP`: range of initial CVaR limits (high-risk phase)
+- `B_MIN`, `B_MAX`, `B_STEP`: range of final CVaR limits (low-risk phase)
+- `FLAT_LEVELS`: CVaR levels for constant-risk glidepaths (set to `[]` to disable)
+
+---
+
+### `02_hit_and_run` — CVaR-Constrained Portfolio Sampler
+
+For each glidepath curve and each month in the horizon, generates a large sample of portfolio weight vectors whose CVaR is strictly below the curve's CVaR limit for that month. Uses the Hit-and-Run MCMC algorithm to sample uniformly from the feasible region.
+
+**Input:**
+- `returns.csv`: historical asset returns (CSV, date index, one column per asset)
+- `outputs/glidepaths_universe.xlsx`: output of module 01
+
+**Output:** One HDF5 file per curve at `outputs/hit_and_run_matrices/curve_XXXX.h5`. Each file contains a dataset `weights` of shape `(HORIZON_MONTHS, N_PORTFOLIOS, N_ASSETS)`.
+
+**Key parameters to edit (`main.py`):**
+- `HORIZON_MONTHS`: **480 for men (40 years), 420 for women (35 years)** — must match module 01 output
+- `SIMULATION_METHOD`: `"copula"` (recommended) or `"mvn"`
+- `ALPHA_CVAR`: CVaR confidence level (e.g., `0.90` = worst 10% tail)
+- `N_PORTFOLIOS_PER_MONTH`: portfolios sampled per month per curve
+- `N_TRAJ`: Monte Carlo scenarios used for CVaR evaluation
+- `RETURNS_SEED`: **must be kept identical in module 03**
+- `CURVE_START`, `CURVE_END`: set to `None` to process all curves (or a curve name to resume)
+- `N_PROCESSES`: number of parallel CPU processes
+
+**Critical:** `RETURNS_SEED` and `SIMULATION_METHOD` must be identical to the values used in module 03.
+
+---
+
+### `03_scenario_evaluator` — Portfolio Trajectory Evaluator
+
+For each glidepath curve, evaluates the annualized cumulative return of every portfolio trajectory under many independent market scenario draws. Produces a matrix of `(N_SEEDS × N_PORTFOLIOS)` annualized returns per curve.
+
+**Input:**
+- `returns.csv`: same file used in module 02
+- `outputs/hit_and_run_matrices/curve_XXXX.h5`: output of module 02
+
+**Output:** One HDF5 file per curve at `outputs/scenario_results/curve_XXXX.h5`. Each file contains a dataset `annualized_returns` of shape `(N_SEEDS, N_PORTFOLIOS)`.
+
+**Key parameters to edit (`main.py`):**
+- `HORIZON_MONTHS`: **480 for men, 420 for women** — must match module 02 exactly
+- `RETURNS_SEED`, `SIMULATION_METHOD`, `N_TRAJ`: **must match module 02 exactly**
+- `SCENARIO_SEEDS`: list of seeds for market scenario draws (default: 1–10,000)
+- `SHUFFLE_SEED`: seed for within-month portfolio permutation (keep fixed at 42)
+- `PROCESS_ALL_CURVES`: set to `True` to process all available curves (recommended default)
+
+**Why the shuffle matters:** The Hit-and-Run algorithm produces autocorrelated portfolios within each month. Shuffling independently within each month (with a fixed seed) breaks this autocorrelation so that each trajectory across months is statistically independent.
+
+---
+
+### `04_full_pool_analyzer` — Full Pool Scenario Analyzer
+
+Reads all scenario result files from module 03 and produces a single Excel file summarizing each curve's performance. All statistics are computed over the full `(N_SEEDS × N_PORTFOLIOS)` pool of observations without intermediate averaging, treating every `(scenario, portfolio)` pair as an independent outcome.
+
+**Input:**
+- `outputs/glidepaths_universe.xlsx`: output of module 01 (for curve parameters and CVaR limits)
+- `outputs/scenario_results/curve_XXXX.h5`: output of module 03
+
+**Output:** `outputs/analysis_full_pool/analysis_full_pool.xlsx`. One row per curve. Columns: curve parameters, pool metadata, `cumulative_risk`, return statistics (mean, std, min, max, percentiles), and one `pct_above_X%` column per threshold.
+
+**Key parameters to edit (`main.py`):**
+- `TARGET_RETURN_THRESHOLDS`: set using the `Required Return (%)` values from module 00 — each threshold becomes one `pct_above_X.XX%` column interpretable as pension adequacy probability
+- `PERCENTILES`: percentiles computed over the full pool
+- `SORT_BY`: column used to sort the output rows (default: `"cumulative_risk"`)
+- `PROCESS_ALL_CURVES`: `True` to process all available curves (recommended default)
+- `OUTPUT_LABEL`: optional suffix appended to the output filename
+
+---
+
+## Required Input File
+
+### `returns.csv`
+
+Place this file at the repository root before running modules 02 and 03.
+
+- **Format:** CSV with comma separator
+- **Index:** First column must be a date (parsed automatically)
+- **Columns:** One column per asset; column headers become asset names throughout the pipeline
+- **Values:** Monthly returns as decimals (e.g., `0.012` for 1.2%)
+- **Minimum:** At least 2 asset columns
+
+---
+
+## Execution Order
 
 ```bash
+# Step 0 (standalone): compute required returns for pension calibration
+# Run this before step 4 to get the TARGET_RETURN_THRESHOLDS values
 python -m 00_target_return.main
-```
 
-This generates `outputs/target_return.xlsx` with required returns for pension adequacy.
-
-**Step 1: Generate Glidepaths**
-
-```bash
+# Step 1: generate glidepath universe
 python -m 01_glidepath_generator.main
+
+# Step 2: sample portfolios (computationally intensive)
+python -m 02_hit_and_run.main
+
+# Step 3: evaluate scenarios (computationally intensive)
+python -m 03_scenario_evaluator.main
+
+# Step 4: aggregate and export final results
+python -m 04_full_pool_analyzer.main
 ```
 
-This generates `outputs/glidepaths_universe.xlsx` with all CVaR glidepath curves.
+Modules 02 and 03 are the most computationally demanding. Module 02 supports resuming interrupted runs via `CURVE_START` / `CURVE_END`. Module 03 supports partial processing via `CURVES_TO_PROCESS`. Both allow distributing work across machines.
 
-**Step 2: Simulate Portfolios**
+---
 
-```bash
-python -m 02_portfolio_simulator.main
-```
+## Seed Consistency Requirements
 
-This generates `outputs/hit_run_results/curve_XXXX_results.xlsx` files for each glidepath.
+These parameters must be kept identical across modules 02 and 03:
 
-**Step 3: Analyze Trajectories**
+| Parameter | Module 02 | Module 03 | Effect if mismatched |
+|---|---|---|---|
+| `RETURNS_SEED` | 111 | 111 | Different return scenarios; CVaR constraints become inconsistent with evaluation |
+| `SIMULATION_METHOD` | `"copula"` | `"copula"` | Different return distributions; results not comparable |
+| `N_TRAJ` | 10_000 | 10_000 | Different scenario count; index selection breaks |
+| `HORIZON_MONTHS` | 480 | 480 | Shape mismatch; module 03 will crash |
 
-```bash
-python -m 03_trajectory_analyzer.main
-```
+`HIT_RUN_SEED` (module 02) and `SHUFFLE_SEED`, `SCENARIO_SEEDS` (module 03) are independent of each other.
 
-This generates `outputs/trajectory_analysis_summary.xlsx` with performance analysis and rankings.
+---
 
-### Output Files
+## Output Summary
 
-After running all steps, you will have:
-
-1. `outputs/target_return.xlsx` - Required returns by demographic profile
-2. `outputs/glidepaths_universe.xlsx` - All CVaR glidepath definitions
-3. `outputs/hit_run_results/curve_XXXX_results.xlsx` - Monthly returns for each curve
-4. `outputs/trajectory_analysis_summary.xlsx` - Final performance rankings
-
-## Configuration
-
-### System-Wide Parameters
-
-The system is currently configured for **female retirement profiles** (60 years retirement age):
-
-- **Horizon:** 420 months (35 years, ages 25-60)
-- **Replacement rate target:** 63%
-- **Contribution density:** 49.6% (female with gaps)
-
-### To Switch to Male Profile
-
-Update these parameters across modules:
-
-**Step 00 (00_target_return/parameters.py):**
-- No changes needed - module calculates both profiles
-
-**Step 01 (01_glidepath_generator/config.py):**
-```python
-T_END_YEARS = 65
-T_B_YEAR = 65
-```
-
-**Step 02 (02_portfolio_simulator/main.py):**
-```python
-HORIZON_MONTHS = 480  # 40 years
-```
-
-**Step 03 (03_trajectory_analyzer/main.py):**
-```python
-TARGET_RETURN_THRESHOLD = 0.058  # Male without gaps (from step 00)
-```
-
-### Key Configuration Files
-
-- `00_target_return/parameters.py` - Pension parameters
-- `01_glidepath_generator/config.py` - Glidepath parameters
-- `02_portfolio_simulator/main.py` - Simulation parameters
-- `03_trajectory_analyzer/main.py` - Analysis parameters
-
-## Understanding the Output
-
-### Step 00 Output: target_return.xlsx
-
-**What it tells you:** The annual return needed for each demographic profile to achieve adequate retirement income.
-
-**Key metrics:**
-- Required Return (%): Annual return needed
-- Achieved Replacement Rate (%): Resulting pension as % of pre-retirement salary
-- Final Accumulated Balance (UF): Total savings at retirement
-- Monthly Pension (UF): Monthly pension payment
-
-**How to use:** Use the Required Return for your profile of interest as TARGET_RETURN_THRESHOLD in Step 03.
-
-### Step 01 Output: glidepaths_universe.xlsx
-
-**What it tells you:** All possible CVaR glidepath strategies to test.
-
-**Structure:**
-- Each column = one glidepath strategy
-- First 6 rows = parameters (t_start, t_A, A, B, t_B, t_end)
-- Remaining rows = monthly CVaR limits (Month_1 through Month_420)
-
-**How to use:** This file is automatically loaded by Steps 02 and 03.
-
-### Step 02 Output: curve_XXXX_results.xlsx (per curve)
-
-**What it tells you:** Monthly returns for all portfolio trajectories following this glidepath.
-
-**Structure (TRANSPOSED):**
-- Rows = trajectories (trajectory_001, trajectory_002, etc.)
-- Columns = months (Month_1 through Month_420)
-- Values = monthly returns (decimal format)
-
-**How to use:** This file is automatically loaded by Step 03 for analysis.
-
-### Step 03 Output: trajectory_analysis_summary.xlsx
-
-**What it tells you:** Which glidepath strategies perform best.
-
-**Key columns:**
-- `pct_above_target`: Success rate (% of trajectories exceeding target return)
-- `return_mean`: Average annualized return
-- `cumulative_risk`: Total CVaR exposure (area under glidepath curve)
-- `A`, `B`, `t_A`: Glidepath parameters
-
-**How to interpret:**
-- Rows sorted by success rate (best strategies first)
-- Compare `cumulative_risk` to understand total risk taken
-- Analyze top rows to identify optimal glidepath characteristics
-
-## Technical Details
-
-### CVaR Glidepath Structure
-
-A CVaR glidepath has three phases:
-
-1. **Constant high risk (ages 25 to t_A):** CVaR limit = A
-2. **Linear transition (ages t_A to t_B):** CVaR decreases from A to B
-3. **Constant low risk (ages t_B to 60):** CVaR limit = B
-
-Example: A=0.08, B=0.03, t_A=40, t_B=60
-- Ages 25-40: Maximum CVaR is 8%
-- Ages 40-60: CVaR decreases from 8% to 3%
-- Age 60+: Maximum CVaR is 3%
-
-### Hit-and-Run Algorithm
-
-The Hit-and-Run algorithm efficiently generates random portfolios satisfying:
-- Weights sum to 1
-- No short selling (w ≥ 0)
-- CVaR below monthly limit
-
-This eliminates the need for post-generation validation, as portfolios are guaranteed CVaR-compliant.
-
-### Scenario Selection Modes
-
-**Fixed Mode (Default):** All portfolios in a month use the same randomly selected scenario. Ensures fair comparison across strategies.
-
-**Random Mode:** Each portfolio uses a different random scenario. Maximizes exploration of market conditions.
-
-### Analysis Modes (Step 03)
-
-The system supports 7 analysis modes for trajectory transformation:
-
-1. Original trajectories only
-2. Sorted trajectories only (best case per month)
-3. Permuted trajectories only (random reassignment)
-4. Permuted + Sorted
-5. Original + Sorted
-6. Original + Permuted
-7. Original + Sorted + Permuted
-
-**Current default:** Mode 3 (Permuted trajectories)
-
-## License
-
-This project is developed by the Fintual-Clapes research team.
-
-## Contact
-
-For questions or issues, please contact the Fintual-Clapes team.
+| File | Module | Description |
+|---|---|---|
+| `outputs/target_return.xlsx` | 00 | Required returns by demographic profile |
+| `outputs/glidepaths_universe.xlsx` | 01 | Full universe of CVaR glidepath curves |
+| `outputs/hit_and_run_matrices/curve_XXXX.h5` | 02 | Weight tensors `(HORIZON_MONTHS × N_portfolios × N_assets)` per curve |
+| `outputs/scenario_results/curve_XXXX.h5` | 03 | Annualized return matrices `(N_seeds × N_portfolios)` per curve |
+| `outputs/analysis_full_pool/analysis_full_pool.xlsx` | 04 | Final ranked comparison of all curves |
