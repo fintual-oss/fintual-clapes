@@ -35,7 +35,7 @@
 \newcommand{\Rm}{R_{m}}
 \newcommand{\cvar}{\mathrm{CVaR}}
 
-\title{Calibrating CVaR Glidepaths for Target-Date Pension Funds Under a Minimum Sufficiency Criterion: A Chilean Application}
+\title{A Declining CVaR Glidepath Framework for Target-Date Fund Design with an Application to the Chilean Pension System}
 \author{%
 Israel Muñoz\textsuperscript{b}, Fernando Suárez\textsuperscript{a}, Omar Larré\textsuperscript{a}, Arturo Cifuentes\textsuperscript{b}\\[0.5em]
 \small \textsuperscript{a} Fintual Administradora General de Fondos S.A. Santiago, Chile. Fintual, Inc.\\
@@ -49,10 +49,53 @@ Israel Muñoz\textsuperscript{b}, Fernando Suárez\textsuperscript{a}, Omar Larr
 \maketitle
 
 \begin{abstract}
-We propose a framework for designing target-date fund (TDF) glidepaths around a declining portfolio-level Conditional Value-at-Risk (CVaR) trajectory calibrated to a minimum-sufficiency criterion: a target replacement rate at retirement. Conventional TDFs control risk indirectly through age-dependent asset-class limits; the framework instead studies regulator-specified portfolio CVaR ceilings while leaving the asset mix unconstrained. For each piecewise-linear CVaR-limit glidepath, we estimate the success probability as the fraction of portfolio--scenario combinations in which feasible portfolio trajectories reach the required real return. Feasible monthly allocations are sampled with the Hit-and-Run algorithm, and future returns are generated with a Gaussian-copula engine. We apply the framework to Chile's 2025 pension reform, using nine Chilean and global asset classes from April 2007 to December 2025, a 40-year accumulation horizon, and OECD wage assumptions. Across 210 candidate glidepaths, the results suggest, under the baseline calibration, that sufficient early-life risk-taking is important for pension sufficiency: candidate glidepaths that begin reducing risk before the worker's mid-forties do not reach the target, even when the initial CVaR limit is high. They also suggest that contribution density is a binding constraint that portfolio design alone may be insufficient to overcome. At or below roughly 58\%, no candidate glidepath clears the 50\% success threshold, indicating that the female case under current densities lies outside the feasible region in this calibration. The framework is general and applies to any TDF designed around an explicit return objective. The findings are intended as technical inputs for professional and regulatory discussion, rather than as prescriptive recommendations.
+We propose a general framework for designing Target-Date Funds (TDFs) based on a 
+clear return objective, and controlling risk at the portfolio level through a 
+declining Conditional Value-at-Risk (CVaR) constraint,  rather than through 
+age-dependent asset-class limits or bands. In our approach, designing the 
+TDF reduces to specifying a CVaR glidepath that leaves a portfolio manager 
+sufficient flexibility to achieve a desired return with a reasonably high 
+probability. The target return is specified  exogenously---determined  by 
+factors such as retirement age, contribution rate, years worked, life 
+expectancy, and a target replacement rate---and the glidepath is 
+calibrated so that the risk assumed at each point in time is commensurate 
+with achieving it. This departs significantly from the conventional TDF 
+architecture, in which age-dependent asset-class limits are specified 
+without reference to any explicit return objective.
+
+A key methodological innovation concerns the modeling of the portfolio 
+manager's behavior. Previous approaches typically assume that the manager 
+succeeds every period in selecting an optimal portfolio---a strong and 
+often unrealistic assumption. By contrast, we only require that the 
+manager select, each month, an asset allocation drawn at random from the 
+set of portfolios that satisfy the CVaR constraint imposed by the 
+glidepath. This conservative assumption yields a more realistic evaluation 
+of each candidate glidepath: rather than a best-case bound, the success 
+probability reflects an average over the admissible allocation space, 
+independent of the manager's ability to identify an optimal portfolio. 
+To compare competing glidepaths, we introduce two figures of merit that 
+capture, respectively, the probability of meeting the return target and 
+the cumulative risk assumed over the TDF's life.
+
+As a proof of concept, we apply the framework to Chile's 2025 pension 
+reform, using nine Chilean and global asset classes and a 40-year 
+accumulation horizon. Two findings stand out. First, the transition 
+age---the age at which the fund begins reducing risk---is the single most 
+consequential design parameter: glidepaths that begin de-risking too early 
+consistently fail to deliver the required return, regardless of how 
+aggressively risk is taken in the early phase. Second, contribution 
+density acts as a hard constraint: below a critical threshold, no 
+glidepath succeeds, indicating that portfolio design alone cannot 
+compensate for structurally low contribution rates. The framework is 
+general and applies to any TDF designed around an explicit return 
+objective.
+
+
+
+
 \end{abstract}
 
-\noindent\textbf{Keywords:} Target-date funds; CVaR; Glidepaths; Pension funds; Asset allocation; Monte Carlo simulation; Chilean pension reform.
+\noindent\textbf{Keywords:} Target-Date Funds; CVaR Glidepath;  Pension Funds; Lifecycle Investing; Replacement Rate; Contribution Density; Chilean Pension System
 
 % Alternative titles from the source draft:
 % 1. On the Design and Implementation of Target-Date Funds (TDF) with an Application to the Chilean Pension System
@@ -61,40 +104,119 @@ We propose a framework for designing target-date fund (TDF) glidepaths around a 
 \section{Introduction}
 % Draft owner in source document: aocusa@gmail.com
 
-In the last decades the most important change in the global pension landscape has been the progressive shift from defined benefits plans to defined contribution plans. And within the defined contributions option the Target Date Funds (TDFs)---also known as generational funds, lifecycle funds or age-based funds---have begun to play an increasingly important role. In fact, at the end of 2025 TDFs managed almost \$5 trillion, whereas in 2000 the size of this market was less than \$8 billion \cite{roy2026,parker2023}.
+In recent decades, the most significant change in the global pension landscape has been the progressive shift from defined-benefit to defined-contribution plans. Within the defined-contribution universe, Target-Date Funds (TDFs)—also known as generational funds, lifecycle funds, or age-based funds—have emerged as increasingly important vehicles. At the end of 2025, TDFs managed almost \$5 trillion, whereas in 2000 the size of this market was less than  \$8 billion \cite{roy2026,parker2023}.
 
 Broadly speaking, a TDF is a diversified, multi-asset investment vehicle designed to serve as the primary---and often sole---retirement savings instrument for an individual with a known or anticipated retirement date. Although in principle such funds could invest in a wide variety of assets, most TDFs limit themselves to stocks and bonds (domestic and international) and have minimal or zero exposures to real estate, currencies, commodities and alternative assets. TDFs can also follow an active or passive strategy.
 
 At present, early 2026, Vanguard is the biggest player in this space: with \$1.8 trillion in AUM, it accounts for 37\% of this segment. Fidelity is a distant second with \$693 billion. All in all, the five biggest players account for roughly 80\% of this market \cite{roy2026}.
 
-The rationale behind these funds is that in general younger workers are better prepared to take more risk while workers approaching retirement should be exposed to safer assets. Risk, in short, should follow a smooth, time-dependent declining pattern---predefined at inception---known as the glide path. Moreover, the conventional wisdom is that stocks are riskier than bonds, and thus, the asset composition of a TDF is expected to start with a high exposure to stocks, which should decline over time; the allocation to bonds, on the other hand, should increase over time, following a pattern opposite to that of stocks. For example, the Vanguard TDF VSVNX (target date, 2070), as of March 31, 2026 had 9.7\% in bonds. In contrast, the Vanguard TDF VTTVX (target date, 2025) had 51.3\% in bonds \cite{vanguard2070,vanguard2025}.
+The rationale behind most of these funds is that younger workers are better prepared to take more risk while workers approaching retirement should be exposed to safer assets. Risk, in short, should follow a smooth, time-dependent declining pattern---predefined at inception---known as the glidepath. Moreover, the conventional wisdom is that stocks are riskier than bonds, and thus, the asset composition of a TDF is expected to start with a high exposure to stocks, which should decline over time; the allocation to bonds, on the other hand, should increase over time, following a pattern opposite to that of stocks. For example, the Vanguard TDF VSVNX (target date, 2070), as of March 31, 2026 had 9.7\% in bonds. In contrast, the Vanguard TDF VTTVX (target date, 2025) had 51.3\% in bonds \cite{vanguard2070,vanguard2025}.
 
-Two features of this conventional architecture deserve emphasis. First, it rests on a strong implicit assumption: that risk is an intrinsic, time-independent property of each asset class---that stocks are simply ``risky'' and bonds simply ``safe,'' independent of the portfolio in which they sit, of cross-asset correlations, or of the prevailing market regime. It is precisely this assumption that makes it sensible to manage risk \emph{indirectly}, through time-dependent asset-class limits or bands, rather than \emph{directly}, through a portfolio-level risk metric such as VaR or CVaR. Second, conventional TDFs do not aim, explicitly or otherwise, at a minimum return (or minimum capital accumulation level). In this sense, TDFs differ markedly from other long-term investment vehicles---endowments, for example---which typically have well-defined return targets and specific risk limits (e.g., maximum drawdowns, CVaR caps).
+Three features of this conventional architecture deserve special 
+attention. The first is the premise that risk in a TDF should decline 
+as workers age. We accept this premise without further argument. The 
+intuition is straightforward: older workers have less time to recover 
+from a major portfolio loss and therefore should be exposed to 
+progressively lower risk as they approach retirement. We note, in 
+passing, that the classical lifecycle models---Samuelson 
+\cite{samuelson1969}, Merton \cite{merton1969}, and the human-capital 
+extensions \cite{bodie1992,gomes2008,cocco2005}---provide only 
+ambiguous support for this convention.  However, they rely  on utility-theoretic 
+primitives---preference specifications and utility functions---whose 
+empirical relevance remains contested. We therefore do not anchor our 
+framework to those models.
 
-In this study, we depart from the conventional TDF architecture and instead focus on TDFs with well-defined return targets whose risk is managed through a portfolio-level risk metric, rather than asset allocation limits. To be clear, no investment can guarantee a minimum return. The idea, however, is to structure the TDF in such a way that the level of risk it assumes remains commensurate with achieving its target return with high probability. All of these terms, of course, require precise definitions---a topic we address in detail later in this document.
+Second, most TDFs rest implicitly on a strong assumption: that risk 
+is an intrinsic, time-independent property of each asset class---that 
+stocks are simply ``risky'' and bonds simply ``safe,'' independent of 
+the portfolio in which they sit, of cross-asset correlations, or of 
+the prevailing market regime. We challenge this assumption and argue 
+that it is more sensible to manage risk \emph{directly}, through a 
+portfolio-level metric such as CVaR, rather than \emph{indirectly}, 
+through time-dependent asset-class limits or bands.
 
-The motivation for this study, and indeed for considering the innovations outlined above, is the recent pension reform enacted in Chile \cite{ley21735}. The centerpiece of this reform is the creation of a pension system based on TDFs, which will fully replace the previous regime---a framework built around five funds known as A, B, C, D, and E, each carrying a distinct risk profile, ranging from Fund A as the highest-risk, equity-oriented option to Fund E as the most conservative, fixed-income-oriented option. Under the new scheme, enrollment will be mandatory, and workers will be automatically assigned to a TDF based on their age bracket, without regard to any other consideration (e.g., desired retirement age, additional assets, or outside savings). The only choice available to workers will be the selection of the asset manager overseeing the TDF---known locally as a \emph{fondo generacional}---in which they are enrolled. As of this writing, the Chilean reform is still awaiting implementation: the new investment regime for fondos generacionales must be issued by September 2026, and the transition from the current multifund system is expected in April 2027 \cite{previsionsocial2025mercer}.
+Third, conventional TDFs do not aim, explicitly or otherwise, at a minimum return (or minimum capital accumulation level). In this sense, TDFs differ markedly from other long-term investment vehicles---endowments, for example---which typically have well-defined return targets and specific risk limits (e.g., maximum drawdowns, CVaR limits).
 
-With that as background, the goal of this effort is twofold. First, we present a general method for designing the glide path of a TDF using a portfolio-level risk metric---specifically, a declining CVaR curve---calibrated to achieve a desired target return. In short, the glide path is constructed so that the level of risk assumed at each point in time is consistent with the return the TDF seeks to deliver. Second, as a proof of concept, we apply this method to the Chilean pension reform. We show that under realistic conditions it is possible to structure TDFs such that the resulting pensions deliver satisfactory replacement rates with high probability. It should be noted, however, that the approach presented is entirely general and can be applied to any TDF; it is in no way restricted to the particular features of the Chilean reform.
+In this study, we depart from the usual TDF architecture and instead focus on TDFs with well-defined return targets whose risk is managed through a portfolio-level risk metric, rather than asset allocation limits. To be clear, no investment can guarantee a minimum return. The idea, however, is to structure the TDF in such a way that the level of risk it assumes remains commensurate with achieving its target return with high probability. All of these terms, of course, require precise definitions---a topic we address in detail later in this document.
 
-The remainder of the paper is organized as follows. The next section reviews the relevant literature, after which we formally state the problem we seek to solve and provide a detailed description of our methodology. We then showcase how this approach works using the Chilean case as an example of application, and conclude with a summary of our main findings.
+ The motivation for this study, and for the innovations outlined above, 
+is the recent pension reform enacted in Chile \cite{ley21735}. The 
+centerpiece of this reform is the creation of a TDF-based pension 
+system that will fully replace the previous regime---a framework built 
+around five funds known as A, B, C, D, and E, each carrying a distinct 
+risk profile, ranging from Fund A, the highest-risk, equity-oriented 
+option, to Fund E, the most conservative, fixed-income-oriented option. Under the new scheme, enrollment will be mandatory, and workers will be automatically assigned to a TDF based on their age bracket, without regard to any other consideration (e.g., desired retirement age, additional assets, or outside savings). The only choice available to workers will be the selection of the asset manager overseeing the TDF---known locally as a \emph{fondo generacional}---in which they are enrolled. As of this writing, the Chilean reform is still awaiting implementation: the new investment regime for the  \emph{fondos generacionales}  must be issued by September 2026, and the transition from the current multifund system is expected in April 2027 \cite{previsionsocial2025mercer}.
+
+With that as background, the goal of this effort is twofold. First, we present a general method for designing the glidepath of a TDF using a portfolio-level risk metric---specifically, a declining CVaR curve---calibrated to achieve a desired target return. In short, the glidepath is constructed so that the level of risk assumed at each point in time is consistent with the return the TDF seeks to deliver. Second, as a proof of concept, we apply this method to the Chilean pension reform. We show that under realistic conditions it is possible to structure TDFs such that the resulting pensions deliver satisfactory replacement rates with high probability. It should be noted, however, that the approach presented is entirely general and can be applied to any TDF; it is not restricted to the particular features of the Chilean reform.
+
+The remainder of the paper is organized as follows. The next section reviews the relevant literature, after which we formally state the problem we seek to solve and provide a detailed description of our methodology (computational strategy). We then showcase how this approach works using the Chilean case as an example of application, discuss our results and conclude with a summary of our main findings.
 
 \section{Literature Review}
 % Draft owner in source document: Fernando Suarez
 
-We begin from a premise rather than a theorem: the level of risk that a long-horizon retirement portfolio should bear ought to decline as the target retirement date approaches. This is less a deep result of life-cycle theory than a convention rooted in common sense---younger workers have more time to recover from drawdowns; older workers have less. The convention is widely accepted, and we adopt it here without further argument. We note, in passing, that the classical life-cycle models---Samuelson \cite{samuelson1969}, Merton \cite{merton1969}, and the human-capital extensions \cite{bodie1992,gomes2008,cocco2005}---provide only ambiguous support for the convention itself, and rely on utility-theoretic primitives whose empirical relevance is debated. We therefore do not anchor our framework to those models.
+Although the idea of declining-risk lifecycle portfolios is older, 
+TDFs only became dominant in practice after the Pension Protection 
+Act of 2006 in the United States and the subsequent Department of 
+Labor QDIA rule, which allowed target-date products to serve as 
+Qualified Default Investment Alternatives in defined-contribution 
+plans \cite{martin2007,dol2007}. Their growth since has been rapid and largely policy-driven, 
+and the literature on TDFs has expanded accordingly.
 
-Although the idea of declining-risk life-cycle portfolios is older, TDFs only became dominant in practice after the Pension Protection Act of 2006 in the United States and the subsequent Department of Labor QDIA rule, which allowed target-date products to serve as Qualified Default Investment Alternatives in defined contribution plans \cite{martin2007,dol2007}. Their growth since has been rapid and largely policy-driven.
+The earliest TDF designs relied on simple age-based heuristics---most famously the ``100-minus-age'' rule, which sets the equity allocation to 100 minus the participant's age. Subsequent work has shown that such rules can produce inadequate retirement outcomes under realistic market conditions \cite{shiller2005}. A related and often overlooked distinction concerns the anchor of these rules: whether the glidepath is indexed to (i) the participant's current age, or (ii) the age at which the participant intends to retire. These two formulations can produce materially different allocations for the same individual, and the literature is not always explicit about which is in use.
 
-The earliest TDF designs relied on simple age-based heuristics---most famously the ``100-minus-age'' rule, which sets the equity allocation to 100 minus the participant's age. Subsequent work has shown that such rules can produce inadequate retirement outcomes under realistic market conditions \cite{shiller2005}. A related and often overlooked distinction concerns the anchor of these rules: whether the glide path is indexed to (i) the participant's current age, or (ii) the age at which the participant intends to retire. These two formulations can produce materially different allocations for the same individual, and the literature is not always explicit about which is in use.
+Beyond the simple rules, a number of alternative glidepath designs have been proposed---fixed-mix 60/40 portfolios, rising-equity paths in retirement \cite{pfau2013}, and ``U-shaped'' trajectories \cite{estrada2019a,estrada2019b}---with mixed empirical support. None of these proposals, however, departs from the core mechanism of conventional TDFs: risk is controlled indirectly, through asset-class limits or bands.
 
-Beyond the simple rules, a number of alternative glide-path designs have been proposed---fixed-mix 60/40 portfolios, rising-equity paths in retirement \cite{pfau2013}, and ``U-shaped'' trajectories \cite{estrada2019a,estrada2019b}---with mixed empirical support. None of these proposals, however, departs from the core mechanism of conventional TDFs: risk is controlled indirectly, through asset-class limits or bands.
+This indirect approach has well-documented drawbacks. Empirical work 
+on U.S.\ TDFs documents wide dispersion among funds with the same 
+target date, reflecting unstated differences in risk and return 
+assumptions \cite{elton2015,balduzzi2019}. More importantly for our 
+purposes, comparative evidence from Chile and Mexico 
+\cite{schlechter2019} shows that investment regulations based solely 
+on asset-class limits can produce erratic fund-level risk--return 
+patterns: in Chile, for example, the most conservative fund (E) has outperformed 
+the riskiest (A) in cumulative returns over a substantial fraction of 
+rolling time-windows, and Sharpe-ratio rankings have been systematically 
+inverted relative to the regulator's original intent. In Mexico, by contrast, 
+where asset-class limits are combined with a portfolio-level VaR 
+constraint, the funds rank as intended. A subsequent study, 
+\cite{pagnoncelli2023} building on this evidence, has argued  for replacing 
+asset-class limits altogether with a single portfolio-level risk 
+metric. 
 
-This indirect approach has well-documented drawbacks. Empirical work on U.S. TDFs documents wide dispersion among funds with the same target date, reflecting unstated differences in risk and return assumptions \cite{elton2015,balduzzi2019}. More importantly for our purposes, comparative evidence from Chile and Mexico \cite{schlechter2019} shows that asset-class-only regimes can produce erratic fund-level risk--return patterns: in Chile, the most conservative fund (E) has outperformed the riskiest (A) in cumulative returns over a substantial share of rolling windows, and Sharpe-ratio rankings have been systematically inverted relative to the regulator's intent; in Mexico, by contrast, where asset-class limits are combined with a portfolio-level VaR cap, the funds rank as designed. A subsequent peer-reviewed treatment \cite{pagnoncelli2023} builds on this evidence to argue for replacing asset-class limits altogether with a single portfolio-level risk metric. Designing the new Chilean fondos generacionales to avoid the asset-class-only pathology is one of the practical motivations for the present work. A recent review of TDF state-of-art and design with applications to the Chilean reform \cite{suarez2025} provides additional context.
+A recent contribution by \citet{perchet2025} shares
+our motivation of controlling risk through a portfolio-level metric,
+using a Value-at-Risk constraint within a two-step recursive optimization
+framework. However, their approach differs from ours in three important
+respects: it lacks an explicit return objective; 
+it restricts the eligible asset universe to equities, bonds, and cash; and,
+most importantly, it assumes the portfolio manager always selects the
+optimal portfolio on the efficient frontier---a strong and, in our view,
+unrealistic assumption. Interestingly, these same authors acknowledge that
+glidepath design in TDFs is typically poorly motivated and lacks standardization
+across the industry---an observation that reinforces the motivation behind
+the present study.
 
-A separate strand of the literature has advocated for adaptive or open-loop TDFs, in which allocations at time $T$ depend not only on $T$ itself but also on accumulated wealth, market conditions, or realized portfolio risk \cite{forsyth2017}. Such designs have advantages---and disadvantages---that we do not litigate here. The framework we propose is deliberately non-adaptive: the CVaR budget at time $T$ is determined ex ante and depends only on $T$, not on the participant's accumulated balance. This is a design choice, not an oversight, and we flag the alternative for completeness.
+A separate strand of the literature has advocated for adaptive 
+TDFs (also known as open-loop TDFs), in which asset allocations at time $T$ depend not only on $T$ 
+itself but also on accumulated wealth, market conditions, or 
+realized portfolio risk \cite{forsyth2017}. Such designs have 
+advantages and disadvantages.  A full discussion of this topic, however, is beyond the scope of this study. The 
+framework we propose is deliberately non-adaptive: the CVaR limit 
+at time $T$ is determined ex ante and depends only on $T$, not on 
+the participant's accumulated balance. This is a design choice, 
+not an oversight.
 
-Across the literature, then, one finds extensive discussion of (i) the shape of the glide path and (ii) the appropriate level of equity exposure at various horizons. But there is comparatively little on a question that is, in our view, logically prior: given a clear retirement-income objective, what is the right risk-budget path? It is this gap that the framework developed in the next section is intended to fill.
+A recent and very complete review of the TDF literature, with many references to the Chilean pension system,  is provided in \cite{suarez2025}.
+
+In summary, the literature offers extensive discussions of how equity 
+and fixed-income exposures should evolve over the life of a TDF. 
+Yet comparatively little attention has been paid to two questions 
+that are, in our view, logically prior: first, what objective the 
+TDF should seek to achieve---a target replacement rate or a minimum 
+cumulative return, for example---and second, how to translate that 
+objective into a risk budget that gives the fund a high probability 
+of meeting it. It is this gap that the present study aims to fill.
+
 
 \section{Problem Statement}
 % Draft owners in source document: aocusa@gmail.com and imunozva@fen.uchile.cl
@@ -103,12 +225,17 @@ We start from the standard assumption that risk in a TDF should decline as the f
 
 The objective is to determine a CVaR-limit glidepath---a monotonically declining CVaR limit trajectory over the TDF's life---calibrated to deliver enough capital to finance an adequate annuity at the fund's closing date.
 
-Figure~\ref{fig:cvar-glidepath} shows a typical CVaR-limit glidepath. A CVaR-limit glidepath, hereafter simply referred to as a glidepath, is defined by the following parameters: $\Tstart$, the worker's entry age into the fund; $\TA$, an intermediate age between $\Tstart$ and $\TB$; $\TB$, the worker's retirement age; and $A$ and $B$, which denote the maximum CVaR limits during the initial and final phases of the TDF's lifespan, respectively. For ease of notation we assume that $\Tstart$, $\TA$ and $\TB$ are expressed in months.
+Figure~\ref{fig:cvar-glidepath} shows a typical CVaR-limit glidepath. A CVaR-limit glidepath, hereafter simply referred to as a glidepath, is defined by the following parameters: $\Tstart$, the worker's entry age into the fund; $\TA$, an intermediate age between $\Tstart$ and $\TB$; $\TB$, the worker's retirement age; and $A$ and $B$, which denote the maximum CVaR limits during the initial and final phases of the TDF's lifespan, respectively.
+
+%For ease of notation we assume that $\Tstart$, $\TA$ and $\TB$ are expressed in months.
+
+
+% POINT TO DISCUSS
 
 \begin{figure}[t]
   \centering
   \begin{tikzpicture}[x=0.13cm,y=0.42cm,>=Latex]
-    \draw[->,thick] (0,0) -- (82,0) node[below] {age / month $t$};
+    \draw[->,thick] (0,0) -- (82,0) node[below] {   $t$};
     \draw[->,thick] (0,0) -- (0,13) node[left] {$L(t)$};
     \draw[dashed] (0,10) -- (30,10);
     \draw[dashed] (0,3) -- (70,3);
@@ -122,11 +249,11 @@ Figure~\ref{fig:cvar-glidepath} shows a typical CVaR-limit glidepath. A CVaR-lim
     \node[left] at (0,10) {$A$};
     \node[left] at (0,3) {$B$};
   \end{tikzpicture}
-  \caption{Schematic CVaR-limit glidepath. The fund holds the initial risk limit $A$ until $\TA$, then linearly reduces the limit to $B$ by retirement age $\TB$.}
+  \caption{Schematic CVaR-limit curve   {$L(t)$}. The TDF is constrained to an  initial CVaR  limit $A$ until $\TA$, then it linearly reduces the limit to $B$ by retirement age $\TB$.}
   \label{fig:cvar-glidepath}
 \end{figure}
 
-Formally, the CVaR limit, $L(t)$, for a month $t$, is given by:
+Formally, the CVaR limit, $L(t)$, for a time  $t$, is given by:
 \begin{equation}
 L(t)=
 \begin{cases}
@@ -136,16 +263,22 @@ B, & t = \TB,
 \end{cases}
 \label{eq:glidepath}
 \end{equation}
-with $B < A$. The lifespan of the TDF, $Q$, expressed in months is
+
+with $B < A$.  The lifespan of the TDF, $Q$, expressed in months
+(assuming both $T_B$ and $T_{\text{start}}$ are expressed in months), is
+
+
+
 \begin{equation}
 Q = (\TB - \Tstart) + 1.
 \end{equation}
 
-Notice that although the CVaR limit declines over time, the decline does not need to be strictly monotonic: we allow for an initial period of constant CVaR limit. Also implicit in this structure is the assumption that the TDF pools individuals from the same age cohort, who enter and exit the fund simultaneously. In other words, we assume homogeneous fund participants. We denote the minimum annualized real return threshold by $\Rstar$.
+Notice that although the CVaR limit declines over time, the decline does not need to be strictly monotonic: we allow for an initial period of constant CVaR limit. Also implicit in this structure is the assumption that the TDF pools individuals from the same age cohort, who enter and exit the fund simultaneously. In other words, we assume homogeneous fund participants. We denote the minimum annualized return threshold
+that the TDF needs to achieve by $R^*$.
 
 The required return $\Rstar$ deserves careful consideration. As an exogenous input to our analysis, its value is determined by a number of factors external to the problem formulation. The process begins with an assumed wage path for the typical worker over the interval $(\Tstart,\TB)$. Using the average salary over the last ten years of employment as a reference, and applying a desired replacement rate---defined as the ratio of the monthly pension to this reference salary---it is possible to calculate the required monthly pension.
 
-This, in turn, given the worker's life expectancy and an appropriate discount rate, makes it possible to estimate the capital $\Kstar$ needed at $\TB$ to fund the annuity. The final step closes the loop: since the wage path is known, and participants contribute a fixed fraction $\lambda$ of their salary to the TDF each month---a rate set by law and uniform across participants---$\Rstar$ can be calculated as the monthly average return that equates the future value of the monthly pension contributions to $\Kstar$.
+This, in turn, given the worker's life expectancy and an appropriate discount rate, makes it possible to estimate the capital $\Kstar$ needed at $\TB$ to fund an annuity. The final step closes the loop: since the wage path is known, and participants contribute a fixed fraction $\lambda$ of their salary to the TDF each month---a rate set by law and uniform across participants---$\Rstar$ can be calculated as the monthly average return that equates the future value of the monthly pension contributions to $\Kstar$.
 
 Two important observations are in order. First, conditional on a given wage path, replacement rate, worker life expectancy, monthly contribution rate, and discount rate, the determination of $\Rstar$ is entirely deterministic. No investment strategy, of course, can guarantee that the TDF will achieve this target return. The goal, rather, is to design a glidepath whose risk profile makes it possible to reach $\Rstar$ with a reasonably high probability.
 
@@ -156,8 +289,12 @@ In summary, given $\Tstart$, $\TB$, and $\Rstar$---presumably determined by a re
 \section{Computational Strategy}
 % Draft owners in source document: imunozva@fen.uchile.cl and aocusa@gmail.com
 % Notation cleanup: use I for feasible portfolio/allocation trajectories and S for return scenarios throughout the paper.
+It is worth noting that the problem we seek to address---finding a 
+glidepath that results in a satisfactory pension---is an inverse problem. 
+In essence, the approach to solving such problem consists of assuming a glidepath structure 
+and then estimating the probability that it delivers the required 
+return $R^*$.  If such probability is high enough, the glidepath is deemed acceptable.
 
-It is worth noting that the problem we seek to address---finding a glidepath that results in a satisfactory pension---is an inverse problem. In simple terms, the approach to solving such problem consists of assuming a structure for the glidepath and then estimating the probability that this glidepath is compatible with achieving the required return $\Rstar$ with high probability.
 
 Thus, for a given CVaR curve $L$, defined by a given set of values $A$, $B$, $\Tstart$, $\TA$ and $\TB$, we need to estimate the probability that this glidepath can deliver the required return $\Rstar$.
 
@@ -166,9 +303,13 @@ Additionally, we assume that we have a universe of $N$ potential assets in which
 With that as background, we proceed as follows.
 
 \paragraph{Simulation of returns.}
-Using a Gaussian copula-based technique in combination with historical return data, we construct a return-generation engine \cite{nelsen2006}. Let $S$ denote the number of simulated return scenarios, chosen to be sufficiently large, and let $Q$ denote the number of monthly periods in the simulation horizon. The engine produces an $S \times Q$ array of simulated return vectors, denoted by $\mathcal{R}=\{R_{s,t}\}$. Each row, consisting of a sequence of $Q$ monthly return vectors, defines one return scenario, while each column corresponds to one simulation month. Each element $R_{s,t}$, with $s \in \{1,\ldots,S\}$ and $t \in \{1,\ldots,Q\}$, is the vector of simulated asset returns in month $t$ under scenario $s$.
+Using a Gaussian copula-based technique in combination with historical return data, we build a return-generation engine \cite{nelsen2006}. Let $S$ denote the number of simulated return scenarios, chosen to be sufficiently large, and let $Q$ denote the number of monthly periods in the simulation horizon. The engine produces an $S \times Q$ array of simulated return vectors, denoted by $\mathcal{R}=\{R_{s,t}\}$. Each row, consisting of a sequence of $Q$ monthly return vectors, defines one return scenario, while each column corresponds to one simulation month. Each element $R_{s,t}$, with $s \in \{1,\ldots,S\}$ and $t \in \{1,\ldots,Q\}$, is the vector of simulated asset returns in month $t$ under scenario $s$.
+
 
 We are mindful that many approaches exist for generating plausible returns from historical data, of which the Gaussian copula is one. Discussing their merits is beyond the scope of this study. The approach that follows is agnostic to any particular returns-generation engine.
+
+Note that this array of simulated returns is generated once and held fixed across all candidate glidepath evaluations (a topic discussed in an upcoming subsection); reusing the same return scenarios ensures that differences across candidate glidepaths reflect differences in the glidepath structure alone, rather than simulation noise.
+
 
 \paragraph{Feasible asset allocation.}
 An asset allocation $\Omega$ is deemed feasible for month $t$, with respect to the CVaR limit $L(t)$, if its estimated CVaR, computed using the $S$ simulated return vectors corresponding to that month, does not exceed $L(t)$. To calculate this CVaR, we first compute the corresponding $S$ scalar portfolio returns:
@@ -178,14 +319,14 @@ An asset allocation $\Omega$ is deemed feasible for month $t$, with respect to t
 These scalar returns are then sorted from lowest to highest, and the CVaR is estimated as the average of the worst ten percent of them, since we work with a 90\% confidence level.
 
 \paragraph{Feasible asset-allocations array.}
-Using a Monte Carlo sampling algorithm based on the Hit-and-Run method (see Appendix~\ref{app:hit-and-run}; the algorithm follows \citet{smith1984}), we construct a feasible asset allocation array $\Omega$ of dimension $I \times Q$, where $I$ denotes the number of feasible portfolios to be constructed. Each entry $(i,t)$ of this array corresponds to a $N$-dimensional vector $\Omega$ that satisfies two conditions: (a) its CVaR limit is below $L(t)$, the limit specified by the glidepath for month $t$; and (b) the set of return vectors used to compute its CVaR corresponds to column $t$ of the return array $\mathcal{R}$. That is, the set of return vectors employed to calculate the CVaR for month $t$ is $\{R_{s,t}\}_{s=1}^{S}$.
+Using a Monte Carlo sampling algorithm based on the Hit-and-Run method (see Appendix~\ref{app:hit-and-run}; the algorithm follows \citet{smith1984}), we construct a feasible asset allocation array  $\mathbf{\Omega}$  of dimension $I \times Q$, where $I$ denotes the number of feasible portfolios to be constructed. Each entry $(i,t)$ of this array corresponds to a $N$-dimensional vector $\Omega$ that satisfies two conditions: (a) its CVaR limit is below $L(t)$, the limit specified by the glidepath for month $t$; and (b) the set of return vectors used to compute its CVaR corresponds to column $t$ of the return array $\mathcal{R}$. That is, the set of return vectors employed to calculate the CVaR for month $t$ is $\{R_{s,t}\}_{s=1}^{S}$.
 
 \paragraph{Return scenarios and feasible portfolios.}
-We assume that the TDF manager rebalances the portfolio monthly. As mentioned before, for a given scenario index $s$, we define a return scenario as a sequence of $Q$ return vectors of dimension $N$, that is, $\{R_{s,1},\ldots,R_{s,Q}\}$. From the returns matrix we have $S$ such scenarios, where each row $s$ of that matrix defines one such scenario.
+We assume that the TDF manager rebalances the portfolio monthly. As mentioned before, a return scenario $s$, is defined as a sequence of $Q$ return vectors of dimension $N$, that is, $\{R_{s,1},\ldots,R_{s,Q}\}$. From the returns array we have $S$ such scenarios, where each row $s$ of that array defines one such scenario.
 
-We define a feasible portfolio $P_i$, for $i \in \{1,\ldots,I\}$, as a sequence of $Q$ feasible asset allocation vectors, that is, $P_i=\{\Omega_{i,1},\ldots,\Omega_{i,Q}\}$. To construct $I$ feasible portfolios from the asset-allocation array, rather than taking its rows directly as generated by the Hit-and-Run sampler---which could introduce spurious serial correlation between consecutive monthly asset allocations, since Hit-and-Run generates samples sequentially and adjacent draws are not fully independent---we first apply an independent random permutation scheme within each column of this matrix. In short, feasible portfolio $i$ is obtained by taking the $i$th row of the after-permutation matrix.
+We define a feasible portfolio $P_i$, for $i \in \{1,\ldots,I\}$, as a sequence of $Q$ feasible asset allocation vectors, that is, $P_i=\{\Omega_{i,1},\ldots,\Omega_{i,Q}\}$. To construct $I$ feasible portfolios from the asset-allocation array, rather than taking its rows directly as generated by the Hit-and-Run sampler---which could introduce spurious serial correlation between consecutive monthly asset allocations, since the Hit-and-Run algorithm generates samples sequentially and adjacent draws are not fully independent---we first apply an independent random permutation scheme within each column of this array. In short, feasible portfolio $i$ is obtained by taking the $i$th row of the after-permutation array.
 
-This construction represents a portfolio manager who does not follow any strategic intertemporal rule, but whose choices always satisfy the monthly risk constraint: each month, the manager selects an otherwise arbitrary allocation from that month's feasible set.
+This construction sets the stage for modeling the behavior of a portfolio manager who does not follow any  intertemporal strategic rule, but rather  chooses randomly, every month, an asset allocation from the set of feasible asset allocations (mamely, asset allocations that satisfy the CVaR limit).
 
 \paragraph{Cumulative return.}
 To evaluate the performance of a glidepath, each feasible portfolio $i \in \{1,\ldots,I\}$ is evaluated under each returns scenario $s \in \{1,\ldots,S\}$. The return of portfolio $i$ in month $t$ under scenario $s$ is:
@@ -201,8 +342,8 @@ which annualized can be expressed as:
 \widehat{R}_{i,s} = \left(1+\pi_{i,s}\right)^{12/Q}-1.
 \end{equation}
 
-\paragraph{Evaluation of candidate glidepaths using success probability $\Psi$.}
-Having computed $\widehat{R}_{i,s}$ for each of the $I \times S$ (feasible portfolio $\times$ returns scenario) combinations, we estimate $\Psi$ as the fraction of cases in which $\widehat{R}_{i,s} \geq \Rstar$:
+\paragraph{Feasible glidepaths and their success probability.}
+Having computed $\widehat{R}_{i,s}$ for each of the $I \times S$ (feasible portfolios $\times$ returns scenarios) combinations, we estimate $\Psi$, the fraction of cases in which $\widehat{R}_{i,s} \geq \Rstar$:
 \begin{equation}
 \Psi = \frac{1}{I \times S}\sum_{s=1}^{S}\sum_{i=1}^{I}
 \mathbf{1}\left[\widehat{R}_{i,s} \geq \Rstar \right].
@@ -210,7 +351,7 @@ Having computed $\widehat{R}_{i,s}$ for each of the $I \times S$ (feasible portf
 \end{equation}
 This figure of merit represents the probability that a portfolio manager, who randomly selects a feasible portfolio from the set of all feasible portfolios, will succeed in delivering the required return $\Rstar$. The lower the value of $\Psi$, the less desirable the glidepath is, from a regulatory standpoint.
 
-We should note, however, that it is possible to find several glidepaths whose $\Psi$ values are sufficiently high to consider them attractive, at least in principle. This motivates an additional criterion for comparing alternatives within the successful set. A glidepath that achieves a high $\Psi$ at the expense of taking excessive risk, for example, might be less attractive from a regulatory viewpoint. Thus, we can incorporate a second figure of merit, $\Gamma$, defined as follows:
+We should note, however, that it is possible to find several glidepaths whose $\Psi$ values are sufficiently high to consider them attractive, at least in principle. This motivates incorporating an additional criterion for comparing different  glidepaths.  A glidepath that achieves a high $\Psi$ at the expense of taking excessive risk, for example, might be less attractive from a regulatory viewpoint. Thus, we can incorporate a second figure of merit, $\Gamma$, defined as follows:
 \begin{equation}
 \Gamma = \sum_{t=1}^{Q}L(t),
 \end{equation}
@@ -221,90 +362,166 @@ Therefore, selecting the best glidepath is really a two-objective problem: maxim
 \section{Example of Application}
 % Draft owner in source document: Fernando Suarez
 
-We now apply the framework developed in the previous section to a concrete setting: the target-date funds (fondos generacionales) that will replace the current multifondos system in Chile \cite{ley21735}. Our aim is twofold. First, to show that the proposed methodology can be operationalized with realistic inputs. Second, to draw a number of substantive conclusions about the design of the glidepath for the Chilean case---some of which are informative for the ongoing regulatory debate.
+We now apply the framework developed in the previous section to a 
+concrete setting: the TDFs that will form the backbone of the future 
+pension system in Chile \cite{ley21735}. Our aim is twofold: first, 
+to show that the proposed methodology can be operationalized with 
+realistic inputs; and second, to draw substantive conclusions about 
+glidepath design for the Chilean case---conclusions that, we believe, 
+will inform the ongoing regulatory discussion surrounding the 
+implementation of the new system.
 
-As emphasized earlier, the methodology itself is general; Chile merely provides a convenient proof of concept. The reader interested only in the methodology can safely skim this section.
 
-The application proceeds in three stages. First, we calibrate the required return $\Rstar$ using assumptions about wages, contributions, life expectancy, and the desired replacement rate. Second, we define an asset universe and a grid of candidate glidepaths and compute, for each candidate, the success probability $\Psi$ and the cumulative risk $\Gamma$ introduced in the methodology. Third, we examine the sensitivity of the results to two parameters of particular interest in the Chilean context: the contribution density and gender.
+As emphasized earlier, the methodology itself is general---Chile merely provides a convenient proof of concept. The reader interested only in the methodology can safely skip this section.
+
+The application proceeds in four stages. First, we estimate  the 
+required return $R^*$ using assumptions about wages, contribution 
+rates, life expectancy, and the target replacement rate. Second, 
+we specify the universe of eligible assets available to the TDF. 
+Third, we define a grid of candidate glidepaths and compute, for 
+each candidate, the success probability $\Psi$ and the cumulative 
+risk $\Gamma$---two figures of merit that together capture the 
+trade-off between the probability of meeting the return target and 
+the total risk assumed over the TDF's life. Finally, we examine 
+the sensitivity of the results to two parameters of particular 
+relevance in the Chilean context: contribution density and the 
+age where de-risking begins ($\TA$).
 
 \subsection{Assumptions and Basic Calculations}
 
-\paragraph{Salary evolution.}
-We assume a deterministic real-salary path consistent with the OECD methodology used in \emph{Pensions at a Glance}: constant real annual growth of 1.25\% throughout the working career \cite{oecd2025}. Throughout the paper, all monetary quantities---salaries, contributions, and accumulated balances---are expressed in inflation-adjusted Chilean pesos, so the growth rate refers strictly to real growth above inflation. For ease of interpretation, we present the salary path as an index normalized to 100 at the age of labor-market entry ($\Tstart=25$). Under the baseline assumption it reaches approximately 164 by the statutory retirement age ($\TB=65$), as shown in Figure~\ref{fig:salary-path}.
+\paragraph{A note on units.}
+All monetary units are expressed in \textit{Unidades de Fomento} 
+(UF), an inflation-indexed Chilean unit of account \cite{bcchUf}. 
+For readability, we drop the ``UF'' qualifier throughout.
+ Because the UF absorbs inflation, every figure here should be read as a real  (inflation-adjusted) figure. 
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.92\textwidth]{figures/salary_path.png}
-  \caption{Salary growth evolution expressed in a base-100 index simulation.}
-  \label{fig:salary-path}
-\end{figure}
+
+
+
+\paragraph{Salary evolution.}
+We assume a deterministic salary path consistent with the OECD methodology used in \emph{Pensions at a Glance}: constant real annual growth of 1.25\% throughout the working career \cite{oecd2025}. Starting from an index value of 100 at labor-market entry ($\Tstart=25$ years), the salary reaches approximately 164 by the statutory retirement age ($\TB=65$ years).
 
 \paragraph{Replacement rate.}
-The target replacement rate $\rho$ is the ratio of the initial monthly pension to a reference salary at retirement. We adopt $\rho=63\%$, the OECD average net replacement rate for full-career average-wage workers reported in \emph{Pensions at a Glance} (2025) \cite{oecd2025}. For the reference salary we follow the standard pension-calculation convention and use the average real salary over the final 120 months (10 years) of the working career. This window is long enough to smooth out short-run fluctuations near retirement but short enough to anchor the pension to the worker's late-career earnings rather than the lifetime average.
+The target replacement rate $\rho$ is the ratio of the monthly pension to a reference salary at retirement. We adopt $\rho=63\%$, the OECD average net replacement rate for full-career average-wage workers reported in \emph{Pensions at a Glance} (2025) \cite{oecd2025}. For the reference salary we follow the standard pension-calculation convention and use the average salary over the final 120 months (10 years) of the working career. This window is long enough to smooth out short-run fluctuations near retirement but short enough to anchor the pension to the worker's late-career earnings rather than the lifetime average.
 
 \paragraph{Parameters specific to the Chilean case.}
-The Chilean institutional setting pins down five additional inputs. The working horizon runs from $\Tstart=25$ to $\TB=65$: the OECD convention sets entry at age 22, but the average age of new affiliates in Chile is 28, and we use the midpoint \cite{oecd2025,sp2024ficha}; $\TB=65$ is the current statutory retirement age for men \cite{dl3500}. Life expectancy at retirement is 88 years, taken from the Chilean mortality-table framework published by the Superintendencia de Pensiones and the Comision para el Mercado Financiero \cite{sp2023mortality}. The contribution rate used in the calibration is $\lambda=16\%$ of salary, intended to capture a higher post-reform savings-intensity scenario relative to the previous 10\% mandatory worker contribution; the enacted 2025 reform itself phases in an additional employer contribution and allocates it across individual capitalization and social-insurance components \cite{ley21735}. The annuity discount rate is UF + 3.2\% per year, in line with recent rates observed on Chilean \emph{rentas vitalicias} (life annuity contracts used to convert the accumulated balance into a lifetime pension) \cite{spRentasVitalicias}.
+The Chilean institutional setting determines five additional inputs.
 
-\paragraph{A note on units.}
-All monetary quantities in the paper are expressed in Unidades de Fomento (UF)---the daily-indexed Chilean unit of account that is adjusted according to CPI inflation \cite{bcchUf}. Because the UF absorbs inflation, every figure here should be read as real, inflation-adjusted. For readability we drop the ``UF'' qualifier in what follows and refer simply to ``pesos.''
 
-\paragraph{A note on the representative worker.}
-We treat the worker as a single, gender-averaged individual rather than analyzing men and women separately. This is appropriate for the methodological focus of the paper; the gender-disaggregated case---different life expectancies, different contribution densities, an unequal statutory retirement age---introduces distinct issues that we revisit in our last section.
+The working horizon runs from $\Tstart=25$ years to $\TB=65$ years: the OECD convention sets the entry at age 22, but the average age of new affiliates in Chile is 28, thus we use the midpoint \cite{oecd2025,sp2024ficha}; $\TB=65$ years is the current statutory retirement age for men \cite{dl3500}. 
+Life expectancy at retirement we take it as  88 years, which according to 
+the Chilean mortality-table framework published by the 
+\textit{Superintendencia de Pensiones} and the \textit{Comisi\'{o}n 
+para el Mercado Financiero} \cite{sp2023mortality}, represents 
+the average of men (86 years) and women (90 years).
+The contribution rate used in this exercise is $\lambda=16\%$ of salary, intended to capture the higher (compared to the current $10\%$) figure specified by the upcoming reform. The annuity discount rate is  3.2\% per year, in line with recent rates observed in the Chilean \emph{rentas vitalicias} (annuities) market  \cite{spRentasVitalicias}.
+
+\paragraph{A representative worker.}
+We treat the representative worker as a gender-neutral individual. 
+This is appropriate for the methodological focus of the paper; the 
+gender-disaggregated case---which involves different life 
+expectancies, contribution densities, and statutory retirement 
+ages---introduces distinct issues that we return to in 
+Section  5.2.
 
 \paragraph{Calculation of $\Kstar$.}
-$\Kstar$ denotes the real capital the worker must have accumulated at retirement in order to fund a constant monthly pension equal to $\rho S_{\mathrm{ref}}$ over the decumulation horizon. It is given by:
+$K^*$ denotes the capital the worker must have accumulated 
+at retirement in order to fund a constant monthly pension 
+equal to $\rho S_{\mathrm{ref}}$ over the post-retirement horizon.
+It is given by:
 \begin{equation}
 \Kstar = \rho S_{\mathrm{ref}}a_{n|r},
 \end{equation}
-where $S_{\mathrm{ref}}$ is the reference salary, defined as the average real salary over the final 120 months in the replacement-rate subsection; $n$ is the decumulation horizon; $r$ is the monthly rate corresponding to the UF + 3.2\% annual discount rate; and $a_{n|r}$ is the standard present-value annuity factor.
+where $S_{\mathrm{ref}}$ is the reference salary, defined as the average  salary over the final 120 months; $n$ is the post-retirement horizon in months; $r$ is the monthly discount rate (0.00267 based on an annual discounr rate of 3.2\%); and $a_{n|r}$ is the standard present-value annuity factor.
 
 \begin{align}
 n &= 12 \times (\text{life expectancy} - \TB) = 276 \text{ months}, \\
 r &= (1+0.032)^{1/12}-1 \approx 0.267\% \text{ per month}, \\
 a_{n|r} &= \frac{1-(1+r)^{-n}}{r} \approx 195.
 \end{align}
-With these values, the target capital can be summarized as:
+With these values, the target capital can be expressed as:
 \begin{equation}
 \Kstar \approx \rho S_{\mathrm{ref}} \times 195.
 \end{equation}
-Under the baseline assumptions, we insert the corresponding values of $\rho$ and $S_{\mathrm{ref}}$ to obtain the numerical estimate for $\Kstar \approx 3{,}800$ UF considering an initial salary of 20 UF.
-
+Under the baseline assumptions, and assuming an initial salary 
+of 20 (actually 20~UF per month, roughly equivalent to USD~900, and 
+consistent with the median Chilean salary), we obtain 
+$K^* \approx 3{,}800$.
 \paragraph{Calculation of $\Rstar$.}
-Given $\Kstar$, $\Rstar$ is the constant annualized real return that, applied to the stream of monthly contributions over the working career, exactly accumulates $\Kstar$ at retirement. It solves:
+Given $\Kstar$, $\Rstar$ is the constant annualized real return that, applied to the stream of monthly contributions over the working career, exactly accumulates $\Kstar$ at retirement. It is determined by solving:
+
 \begin{equation}
-\Kstar = \lambda \sum_{t=1}^{N}S_t(1+\Rm)^{N-t},
+K^* = \lambda \sum_{t=1}^{N} S_t (1 + R^*)^{N-t},
 \end{equation}
-where $N=12\times(\TB-\Tstart)=480$ months, $S_t$ is the real salary in month $t$ along the path defined in the salary-evolution subsection, $\lambda=16\%$, and $\Rm$ is the monthly rate corresponding to $\Rstar$. The equation is solved numerically by bisection.
+where $N = 12 \times (T_B - T_{\text{start}}) = 480$ months, $S_t$ is 
+the real salary in month $t$ along the path defined in the 
+salary-evolution subsection, $\lambda = 16\%$, and $R^*$ is the monthly 
+required rate necessary to achieve a capital of $K^*$.
+The equation is solved numerically with an iterative procedure.
+
+
+
 
 \paragraph{Contribution density.}
-The construction above assumes the worker contributes every month from $\Tstart$ to $\TB$. In practice that is not what happens. Workers move in and out of the formal labor market---periods of unemployment, self-employment, informal work, or caregiving interruptions all show up as months in which no contribution is made. These gaps---known locally as lagunas previsionales---are a serious feature of the Chilean (and, more broadly, Latin American) experience. The Superintendencia de Pensiones reports average contribution densities of roughly 58\% for men and 50\% for women \cite{sp2024ficha}.
 
-Modeling each worker's individual on/off contribution pattern is intractable in a paper of this scope. We use a transparent approximation: rather than alternating between full contributions and zero, we assume the worker contributes a constant fraction $\beta$ of the statutory amount in every month of the working career, with $0 < \beta \leq 1$. This preserves the total amount contributed over the career while smoothing it across months.
+The computation above assumes the worker contributes every month 
+from $T_{\text{start}}$ to $T_B$. In practice, this rarely happens. 
+Workers move in and out of the formal labor market---spells of 
+unemployment, self-employment, informal work, or caregiving 
+interruptions all translate into months of missing contributions. 
+These gaps---known locally as \textit{lagunas previsionales}---are 
+a structural feature of the Chilean pension system and, more 
+broadly, of the Latin American experience. The \textit{Superintendencia de 
+Pensiones} reports average contribution densities of approximately 
+$58\%$ for men and $50\%$ for women \cite{sp2024ficha}.
 
-The savings equation modifies accordingly. The monthly contribution becomes $c_t=\beta\lambda S_t$, and $\Rstar$ now solves:
+Modeling each worker's individual contribution pattern explicitly 
+is beyond the scope of this study. Instead, we adopt a transparent 
+approximation: rather than alternating between full contributions 
+and zero, we assume the worker contributes a constant fraction 
+$\beta$ of the statutory amount every month over the working career, 
+with $0 < \beta \leq 1$. This preserves total career contributions 
+while smoothing them uniformly across months.
+
+Therefore, the savings equation is modified accordingly. The monthly 
+contribution becomes $\beta\lambda S_t$, and $R^*$ is found by solving:
 \begin{equation}
-\Kstar = \beta\lambda \sum_{t=1}^{N}S_t(1+\Rm)^{N-t}.
+K^* = \beta\lambda \sum_{t=1}^{N} S_t (1 + R^*)^{N-t}.
 \end{equation}
-Under the baseline density $\beta=60\%$---chosen to be slightly above the observed male average of 58\%, so that the design problem is feasible while remaining realistic---and the other parameters defined above, the solution is:
+Under the baseline density $\beta=60\%$---chosen to be slightly above the observed male average of 58\%, so that the design problem is feasible while remaining realistic---and the other parameters defined previously, the solution is:
 \begin{equation}
-\Rstar = \text{UF} + 5.5\%.
+\Rstar =  5.5\%.
 \end{equation}
-This is the anchor for everything that follows.
+This value anchors all subsequent calculations.
 
 \paragraph{Eligible assets.}
-A standard U.S. target-date fund draws its glidepath from a narrow asset universe---typically two broad classes, equities and bonds, with the shift across them driving essentially all of the time variation in risk. We take a deliberately broader view here. The framework requires no prior assumption about which assets are ``risky'' and which are ``safe'': risk is controlled at the portfolio level, and the algorithm is free to combine any available assets so long as the resulting CVaR fits within the glidepath. To exercise this generality, we use a universe of $N=9$ asset classes---spanning Chilean fixed income, Chilean equity, global fixed income, global equity, and alternatives---that constitutes a realistic opportunity set for a Chilean pension manager. The historical record covers April 2007 through December 2025 at monthly frequency ($M=225$ observations). Table~\ref{tab:asset-universe} reports the sample moments and the historical CVaR (90\% confidence level) of each asset.
+The standard U.S.\ TDF draws from a narrow asset universe---typically 
+two broad classes, equities and bonds---with the shift between them 
+driving essentially all of the time variation in risk. We take a 
+deliberately broader view. Consistent with our portfolio-level risk 
+framework, we make no prior assumptions about which assets are 
+``risky'' and which are ``safe'': risk is controlled at the portfolio 
+level via the CVaR limit, and the algorithm is free to combine any 
+eligible assets so long as the resulting portfolio CVaR remains within 
+the glidepath. We therefore work with a universe of $N=9$ asset 
+classes---spanning Chilean fixed income, Chilean equities, global fixed 
+income, global equities, and alternatives---that constitutes a realistic 
+opportunity set for a Chilean pension manager. The historical record 
+covers April 2007 through December 2025 at monthly frequency 
+($M=225$ observations). Table~\ref{tab:asset-universe} reports summary 
+statistics for each asset class; CVaR is computed at the 90\% confidence level.
 
 \begin{table}[t]
   \centering
   \small
-  \caption{Asset universe: summary statistics on monthly returns in UF.}
+  \caption{List of eligible assets: key statistics based on monthly real returns (inflation-adjusted Chilean pesos).}
   \label{tab:asset-universe}
   \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}X l r r r@{}}
     \toprule
-    Asset class & Ticker & Mean & Std. dev. & CVaR (90\%) \\
+    Asset class (Indices) & Ticker & Mean return & Std. dev. & CVaR (90\%) \\
     \midrule
     LVA-Chile Certificates of Deposit & LKXIP & 0.01\% & 0.37\% & -0.62\% \\
-    Riskamerica Corporate Global & RACLCORP & 0.27\% & 1.51\% & -2.87\% \\
+    Riskamerica Corporate Bonds (Chile) & RACLCORP & 0.27\% & 1.51\% & -2.87\% \\
     S\&P/CLX IPSA (Chilean equities) & IPSA & 0.34\% & 4.92\% & -8.22\% \\
     Bloomberg Buyout Index & PEBUY & 0.84\% & 4.33\% & -6.13\% \\
     Global Aggregate (fixed income) & LEGATRUU & 0.13\% & 3.22\% & -5.10\% \\
@@ -316,42 +533,74 @@ A standard U.S. target-date fund draws its glidepath from a narrow asset univers
   \end{tabularx}
 \end{table}
 
-For the Chilean fixed-income component, we use the Riskamerica Corporate Global index rather than a broader aggregate fixed-income benchmark in order to isolate a spread-bearing corporate exposure. The index excludes the sovereign and base-rate component but retains corporate issuers, including banks. This matters because the Chilean bank-bond market is liquid, deep, and generally highly rated, while still offering some spread over government debt. A purely government fixed-income benchmark would provide a lower-yield proxy and would make the sufficiency exercise less informative. The asset universe is not intended to exhaust all possible indices or instruments available to pension managers. In practice, the feasible investment universe is substantially larger and likely contains additional opportunities. The purpose here is to use a compact set of reasonable proxies that lets the methodology, rather than a long list of asset choices, remain the object of the exercise.
+A few remarks on the asset universe are in order. For the Chilean 
+fixed-income component, we use the Riskamerica Corporate Global 
+index rather than a broader aggregate benchmark in order to isolate 
+a spread-bearing corporate exposure. The index excludes the sovereign 
+and base-rate component but retains corporate issuers, including 
+banks. This choice is motivated by the fact that the Chilean 
+bank-bond market is liquid, deep, and generally highly rated, while 
+still offering a meaningful spread over government debt. A purely 
+sovereign benchmark would provide a lower-yield proxy and would make 
+the simulation exercise less informative. More generally, the asset 
+universe is not intended to exhaust the instruments available to 
+pension managers in practice---the eligible investment universe is 
+substantially larger. The purpose here is to use a compact and 
+representative set of proxies to showcase the methodology, rather 
+than to endorse any particular choice for the investment universe.
 
-The single-asset CVaR ranges from 0.62\% (Chilean CDs) to 8.56\% (emerging-markets equity), spanning more than a factor of ten. This wide dispersion gives the algorithm real flexibility in constructing portfolios anywhere along a declining-CVaR glidepath, and it helps calibrate the search space for the glidepath parameters $A$ and $B$ (set in the following subsection). Historical monthly returns feed the Gaussian-copula engine described in the methodology, which generates the $S=10{,}000$ return scenarios used throughout the analysis.
+The single-asset CVaR ranges from 0.62\% (Chilean CDs) to 8.56\% (emerging-markets equities), spanning more than a factor of ten. This wide dispersion gives the algorithm real flexibility in constructing portfolios anywhere along a declining-CVaR glidepath, and it helps calibrate the search space for the glidepath parameters $A$ and $B$ (discussed in the following subsection). Historical monthly returns feed the Gaussian-copula engine described in Section 4, to generate the $S=10{,}000$ return scenarios used throughout the analysis.
 
-\paragraph{Possible glidepaths.}
-We fix $\Tstart=25$ and $\TB=65$ throughout the application, since these are structural features of the Chilean case rather than parameters to optimize. The horizon is therefore $Q=\TB-\Tstart=480$ months. The CVaR limits $A$ and $B$ are constrained by the feasible range of portfolio CVaRs computed from the eligible assets in Table~\ref{tab:asset-universe}: $A$ cannot meaningfully exceed the maximum single-asset CVaR (8.56\%), while $B$ cannot fall below the minimum (0.62\%). On this basis we explore $A \in \{5\%,6\%,7\%,8\%,9\%,10\%\}$, fix $B=3\%$---a conservative but attainable floor, close to the CVaR of the Riskamerica Corporate index---and let the transition age $\TA$ vary over the integer range $[30,64]$. This yields a grid of $35 \times 6 = 210$ candidate glidepaths.
+\paragraph{Candidate  glidepaths.}
+We fix $\Tstart=25$ years and $\TB=65$ years throughout this example, since these are structural features of the Chilean case rather than parameters to optimize. The TDF simulation horizon is therefore $Q=\TB-\Tstart=40$ years which we express as 480 months for the purpose of this analysis. The CVaR limits $A$ and $B$ are constrained by the maximum and minimum values associated with the eligible assets (Table~\ref{tab:asset-universe}).  Note that $A$ cannot realistically  exceed the maximum single-asset CVaR (8.56\%), while $B$ cannot fall below the minimum (0.62\%). On this basis we limit our exploration to $A \in \{5\%,6\%,7\%,8\%,9\%,10\%\}$, fix $B=3\%$---a conservative but attainable floor, close to the CVaR of the Riskamerica Corporate index---and let the transition age $\TA$ (expressed in years) vary over the integer range $[30,64]$. This yields a grid of $35 \times 6 = 210$ candidate glidepaths.
 
-\paragraph{Computation grid strategy.}
-For each of the 210 candidate glidepaths we proceed in three steps. First, using the Gaussian-copula engine described in the methodology, we generate $S=10{,}000$ monthly return scenarios over the 480-month horizon---a single $(S \times Q)$ return matrix that is reused across all candidates. Second, for each glidepath, we generate $I=10{,}000$ feasible portfolio trajectories---sequences of asset weights that respect both the budget constraint and the time-varying CVaR cap---by sampling monthly feasible allocations with the Hit-and-Run algorithm of Appendix~\ref{app:hit-and-run} and assembling them into weight sequences. Third, we evaluate every portfolio--scenario pair, obtaining $I \times S=10^8$ simulated outcomes from which we compute the success probability $\Psi$ and the cumulative risk $\Gamma$ for that glidepath.
+\paragraph{Candidate glidepath assessment.}
 
-\subsection{Analyses and Simulations}
 
-\subsubsection{Basic Case}
 
-Of the 210 candidate curves, 66 are successful in the sense that $\Psi>50\%$ at the baseline $\Rstar=\text{UF}+5.5\%$. Figure~\ref{fig:heatmap} displays $\Psi$ as a heatmap over the parameter grid, with the initial CVaR limit $A$ on one axis and the transition age $\TA$ on the other.
+ First, using the Gaussian-copula engine described in Section 4, we generate $S=10{,}000$ monthly return scenarios over the 480-month horizon---a single $(S \times Q)$ returns array that is reused to evaluate all glidepath candidates. Then, for each of the 210 candidate glidepaths we proceed in two steps.  First, for each glidepath, we generate $I=10{,}000$ feasible portfolio trajectories ---sequences of asset weights that every month satisfy the CVaR-limit constraint specified by the glidepath (by generating monthly feasible asset allocations with the Hit-and-Run algorithm described in Appendix A).  And second,  we evaluate every feasible portfolio--returns scenario pair, obtaining $I \times S=10^8$ simulated outcomes from which we compute the success probability $\Psi$ and the cumulative risk $\Gamma$ for that glidepath.
+ 
+
+
+ 
+
+\subsection{Simulation results and analyses}
+
+\paragraph{Base  Case.}
+Exploring the merits of each of the 210 CVaR glidepaths is essentially an exercise in 
+exploring the merits of the different combinations of $A$ and $T_A$. Of the 210 candidate 
+glidepaths, 66 are successful in the sense that $\Psi > 50\%$; that is, their probability 
+of exceeding the target return $R^* = 5.5\%$ exceeds 50\%. Figure~\ref{fig:heatmap} displays $\Psi$ as a heatmap over the parameter grid, with the 
+initial CVaR limit $A$ on one axis and the transition age $T_A$ on the other.
+
+
 
 \begin{figure}[!htbp]
   \centering
-  \includegraphics[width=0.82\textwidth]{figures/success_probability_heatmap.png}
-  \caption{Heatmap of success probability $\Psi$ over the $(A,\TA)$ grid at $\Rstar=\text{UF}+5.5\%$. The 50\% contour separates successful from unsuccessful curves.}
+  \includegraphics[width=0.9\textwidth]{figures/heatmap.png}
+  \caption{Heatmap of success probability $\Psi$ over the $(A,\TA)$ grid for $\Rstar=5.5\%$. The 50\% contour separates successful from unsuccessful CVaR glidepaths.}
   \label{fig:heatmap}
 \end{figure}
 
 Three features of the heatmap are worth highlighting.
+First, $\Psi$ increases with both $A$ (the maximum CVaR limit admissible during 
+the initial constant-risk period) and $T_A$ (the age at which the fund begins 
+reducing risk). Along each axis taken alone, $\Psi$ increases monotonically---
+subject to small fluctuations attributable to simulation noise---and the two 
+effects reinforce each other: allowing more risk ($A$) and sustaining it for 
+longer ($T_A$) are complementary routes to clearing the $\Psi > 50\%$ threshold.
 
-First, $\Psi$ increases with both $A$ (the maximum risk level allowed during accumulation) and $\TA$ (the age at which risk reduction begins). Each axis taken alone is monotone---modulo small fluctuations attributable to simulation noise---and the two effects compound: holding more risk for longer reaches the success threshold by either of two complementary routes.
+Second, the boundary between successful and unsuccessful glidepaths reveals clearly the trade-off between the two design parameters. For each value of $A$ at or above $6\%$, there is a minimum transition age below which the glidepath fails---and this minimum age decreases as $A$ increases. In other words, if the regulator is willing to allow more risk during the initial period (a higher $A$), the transition to safer assets can begin earlier; if instead the maximum risk $A$ is held to a lower level, the transition must be delayed correspondingly. Table~\ref{tab:boundary} summarizes this trade-off.  Notice also that increasing $T_A$ beyond the minimum value required to achieve success improves only marginally the value of $\Psi$.
 
-Second, the boundary between successful and unsuccessful curves reveals a clear trade-off between the two design parameters. For each value of $A$ at or above 6\%, there is a minimum transition age below which the curve fails---and this minimum age decreases as $A$ increases. In other words, if the regulator is willing to allow more risk during accumulation (a higher $A$), the transition to safer assets can begin earlier; if instead the maximum risk is held to a lower level, the transition must be delayed correspondingly. Table~\ref{tab:boundary} summarizes this trade-off.
+
 
 \begin{table}[t]
   \centering
-  \caption{Minimum successful transition age by initial CVaR limit.}
+  \caption{Minimum successful transition age $\TA$  by initial CVaR limit ($A$).}
   \label{tab:boundary}
   \begin{tabular}{@{}lccc@{}}
     \toprule
-    $A$ & Min. successful $\TA$ & $\Psi$ at boundary & Maximum $\Psi$ at this $A$ \\
+    $A$ & Min.  $\TA$ (years) & $\Psi$ at boundary & Maximum $\Psi$ for this  $A$ \\
     \midrule
     5\% & none & -- & 48.2\% \\
     6\% & 58 & 50.0\% & 51.9\% \\
@@ -363,93 +612,252 @@ Second, the boundary between successful and unsuccessful curves reveals a clear 
   \end{tabular}
 \end{table}
 
-Curves with $A=5\%$ never reach the threshold for any value of $\TA$: the maximum risk level is too low to support sufficient accumulation regardless of when the transition begins. Curves with $A=6\%$ require holding the maximum risk almost to retirement ($\TA=58$), while curves with $A=10\%$ can begin the transition more than a decade earlier ($\TA=45$). The two design levers---how much risk to allow and for how long---are partial substitutes.
+Also noticeable, glidepaths with $A=5\%$ never reach the $\Psi > 50\%$  
+threshold for any value of $T_A$: the maximum risk level is simply too low to 
+allow the TDF to take enough risk to deliver the required return $R^*$, 
+regardless of when the transition begins. Glidepaths with $A=6\%$ require 
+holding the maximum risk almost to retirement ($T_A=58$), while those with 
+$A=10\%$ can begin the transition more than a decade earlier ($T_A=45$). The 
+two design levers---how much risk to allow and for how long---are partial 
+substitutes.
 
-Third, among all successful curves, the one with minimum cumulative risk $\Gamma$ has parameters $A=6\%$, $B=3\%$, $\TA=58$, with $\Gamma=27.53$ and $\Psi=50.02\%$. This curve maintains the initial risk limit of 6\% for 33 years and then reduces it linearly to 3\% over the final 7 years of the worker's career. We refer to this as the \emph{full-pool optimum}. It establishes a lower bound on the cumulative risk achievable at the 50\% success threshold, but whether it is the most desirable glidepath from a policy standpoint is a separate question---one we take up after presenting a second, simpler analysis.
+Third, among all successful glidepaths, the one with minimum cumulative risk 
+$\Gamma$ has parameters $A=6\%$, $B=3\%$, $T_A=58$, with $\Gamma=27.53$ and 
+$\Psi=50.02\%$. This glidepath maintains the initial CVaR limit of $6\%$ for 
+33 years and then reduces it linearly to $3\%$ over the final 7 years of the 
+worker's career. We refer to this as the \emph{minimum-risk optimum}. It 
+establishes a lower bound on the cumulative risk compatible with the 
+$\Psi > 50\%$ success threshold. Whether this is the most desirable glidepath 
+from a regulatory standpoint is ultimately a public-policy decision that goes 
+beyond the scope of this simulation exercise.
 
 \paragraph{Importance of $\TA$.}
-To isolate the role of the transition age $\TA$, we consider a restricted version of the problem in which $A$ and $B$ are fixed at policy-relevant values. Specifically, we set $A=10\%$---essentially unconstrained, giving managers maximum flexibility in the early phase---and $B=3\%$ as before. The only question is then: at what age should risk-taking begin to decline?
+To isolate the role of the transition age $\TA$, we consider a restricted version of the problem in which $A$ and $B$ are fixed. Specifically, we set $A=10\%$---essentially unconstrained, giving managers maximum flexibility in the early phase---and $B=3\%$ as before. The only question is then: when should the transition age begin?
 
 \begin{figure}[!htbp]
   \centering
-  \includegraphics[width=0.82\textwidth]{figures/filtered_cvar_envelope.png}
-  \caption{Filtered envelope of CVaR curves at $A=10\%$, $B=3\%$. Successful curves ($\Psi>50\%$) are shown in blue; unsuccessful curves are shown in gray; and the minimum-$\Gamma$ successful curve is shown in red. Adapted from slide 25 of the presentation.}
+  \includegraphics[width=0.9\textwidth]{figures/cvar_envelope_curves.png}
+  \caption{Filtered envelope of CVaR glidepaths for  $A=10\%$, and $B=3\%$. Successful glidepaths ($\Psi>50\%$) are shown in blue; unsuccessful glidepaths are shown in gray; and the minimum-$\Gamma$ successful glidepath  is shown in red. }
   \label{fig:filtered-envelope}
 \end{figure}
 
-The results, displayed in Figure~\ref{fig:filtered-envelope}, show that $\Psi$ rises approximately monotonically with $\TA$---modulo small local reversals attributable to simulation noise---and first crosses the 50\% threshold at $\TA=45$ ($\Psi=50.13\%$, $\Gamma=39.57$). Curves that begin reducing risk before age 45 systematically fail to deliver adequate retirement outcomes, regardless of how aggressively risk is taken in the initial phase.
+The results, displayed in Figure~\ref{fig:filtered-envelope}, show that $\Psi$ 
+increases monotonically with $T_A$, and first crosses the $\Psi > 50\%$ success 
+threshold at $T_A=45$ ($\Psi=50.13\%$, $\Gamma=39.57$). Glidepaths that begin 
+reducing risk before age 45 systematically fail to deliver the required return 
+$R^*=5.5\%$, regardless of how much risk is taken during the constant-risk 
+period.
 
-This finding offers a policy-relevant interpretation: under realistic Chilean parameters, the simulations suggest caution against beginning the downward transition before the worker's mid-forties. In this calibration, moving earlier sacrifices compounding at a time when the worker's human capital still dominates the balance sheet, and the loss cannot be recovered through more conservative later allocations.
+This finding offers an important policy-relevant interpretation: under realistic 
+Chilean parameters, the simulations suggest caution against beginning the 
+downward risk transition before the worker's mid-forties. Young workers can 
+afford to take more risk, as they have time to recover from adverse outcomes. 
+In essence, the simulations warn against the ``risk of not taking enough risk.''
 
-On balance, and weighing the trade-off between optimality and parsimony, the filtered parameterization appears useful as a reference case for the Chilean context. The full-pool result remains useful as a benchmark---it shows what minimum cumulative risk is achievable at the 50\% success threshold---while the filtered version may be simpler to communicate, more robust to changes in assumptions, and more consistent with the paper's overall philosophy of portfolio-level risk governance. This should be read as one input for discussion rather than as a uniquely preferred specification: regulators who place a premium on minimizing cumulative risk at the cost of parametric complexity may reasonably prefer the full-pool result, and nothing in our analysis rules this out.
+The \emph{minimum-risk optimum} serves as a useful benchmark: it identifies 
+the lowest cumulative-risk glidepath compatible with the $\Psi > 50\%$ success threshold. 
+The filtered parameterization ($A=10\%$, $B=3\%$, $T_A=45$) is simpler to 
+communicate and more robust to changes in assumptions. Both should be read as 
+inputs for regulatory discussion, not as prescriptive recommendations.
 
 \paragraph{Importance of the contribution density.}
-The Chilean pension system has a well-documented problem of low and uneven contribution density, driven by informal employment, labor-market gaps, and gender-specific patterns. Since $\Rstar$ depends directly on the amount of capital accumulated at retirement, and therefore on the fraction of months in which the worker actually contributes, it is essential to understand how our results move with density.
 
+Chile has a well-documented problem of low and uneven contribution density, 
+driven by informal employment, labor-market gaps, and gender-specific patterns. 
+Since $R^*$ depends directly on the fraction of months in which the worker 
+actually contributes, understanding how density affects the simulation results is essential.
 \begin{figure}[!htbp]
   \centering
-  \includegraphics[width=0.82\textwidth]{figures/contribution_density_success.png}
-  \caption{Share of successful curves ($\Psi>50\%$) and average success rate across all curves, as a function of contribution density.}
+  \includegraphics[width=0.9\textwidth]{figures/density_vs_success.png}
+  \caption{Percentage of successful glidepaths  ($\Psi>50\%$) and average success rate across all glidepaths, as a function of contribution density.}
   \label{fig:contribution-density}
 \end{figure}
 
-Figure~\ref{fig:contribution-density} shows two curves plotted against contribution density: the fraction of candidate glidepaths that are successful, and the average $\Psi$ across all curves. Three regions emerge.
+Figure~\ref{fig:contribution-density} shows two curves plotted against 
+contribution density: the fraction of candidate glidepaths that clear the 
+$\Psi > 50\%$ success threshold, and the average $\Psi$ across all (sucessful and unsucessful) glidepaths. 
+The picture reveals three distinct regions.
 
-For densities of 58\% and below, no glidepath in our grid achieves $\Psi>50\%$. The required return is too high to be reached with high probability under any admissible risk profile considered in this exercise. In this regime, the glidepath-design problem appears infeasible within our grid: portfolio policy alone would be unlikely to close the gap under the baseline assumptions.
+For densities at or below $58\%$, no glidepath in our grid achieves 
+$\Psi > 50\%$: the required return $R^*$ is too high to be reached under 
+any glidepath. In this regime, the problem is simply 
+infeasible---no portfolio investment strategy can compensate for 
+insufficient contributions.
 
-For densities of 68\% and above, every glidepath in the grid achieves $\Psi>50\%$. The required return is low enough that even conservative curves succeed, and the choice of glidepath becomes a matter of efficiency rather than feasibility.
+For densities at or above $68\%$, every glidepath in the grid achieves 
+$\Psi > 50\%$: the required return $R^*$ is low enough that even the most 
+conservative glidepaths succeed.
 
-Between these bounds---roughly the range 59\% to 67\%---lies the non-trivial region in which the methodology adds value. Within this window, the share of successful curves rises steeply: 9.5\% at density 59\%, 31.4\% at 60\%, 56.2\% at 61\%, and 98.6\% by 67\%. The transition from infeasibility to triviality spans less than ten percentage points of density, which is remarkably narrow.
+Between these boundaries---roughly $59\%$ to $67\%$---lies the region where 
+glidepath design matters most. Within this window, the share of successful 
+glidepaths rises steeply: $9.5\%$ at density $59\%$, $31.4\%$ at $60\%$, 
+$56.2\%$ at $61\%$, and $98.6\%$ by $67\%$. This transition spans less than 
+ten percentage points of density, which is remarkably narrow.
 
-This is relevant for the Chilean case. The observed male density (58.3\%) falls below the feasibility boundary of our grid---meaning that under the baseline assumptions, our search space does not identify a successful glidepath for the average Chilean male worker. The observed female density (49.6\%) is well outside the feasible region. In other words, the design problem that our methodology is built to solve appears infeasible within the modeled search space at current Chilean densities, at least for the representative worker.
+This is directly relevant for the Chilean case. The observed male density 
+($58.3\%$) falls below the lower bound of the feasible region---meaning that 
+under the baseline assumptions, no successful glidepath exists for the average 
+Chilean male worker. The observed female density ($49.6\%$) lies well outside 
+it. At current Chilean densities, the glidepath design problem is simply 
+infeasible for the representative worker.
 
-A related implication for discussion is that portfolio design is not a substitute for contribution policy. If density cannot be brought materially above 58\%, other levers---such as the contribution rate, the retirement age, or the replacement rate target---may need to be evaluated alongside glidepath design, since the glidepath alone is unlikely to close the gap under the baseline assumptions.
-
+A critical implication is that portfolio investment decisions are not a 
+substitute for adequate contribution density. If density cannot be raised 
+materially above $58\%$, other levers---such as the contribution rate, the 
+retirement age, or the replacement rate target---must be reconsidered, since 
+no glidepath can deliver the required return ($R^*$) under the baseline assumptions at those 
+density levels.
 \paragraph{Gender gap.}
-The Chilean system exhibits persistent gender gaps driven by three factors that all push $\Rstar$ higher for women: earlier retirement (60 vs. 65), longer post-retirement life expectancy (90 vs. 86), and lower contribution density (49.6\% vs. 58.3\%) \cite{dl3500,sp2023mortality,sp2024ficha}. Applying the methodology separately by gender yields $\Rstar=\text{UF}+5.4\%$ for men and $\Rstar=\text{UF}+8.8\%$ for women (Table~\ref{tab:gender}).
+
+
+The preceding analysis relied on a gender-neutral representative worker. 
+In reality, three key parameters differ sharply between men and women in 
+Chile, all pushing $R^*$ higher for women: (i) earlier retirement age 
+(60 vs.\ 65 years); (ii) longer post-retirement life expectancy (90 vs.\ 86 
+years); and (iii) lower contribution density ($49.6\%$ vs.\ $58.3\%$) 
+\cite{dl3500,sp2023mortality,sp2024ficha}. Consequently, the gender-specific 
+required return differ substantially: $R^* = 5.3\%$ for men and 
+$R^* = 8.4\%$ for women (Table~\ref{tab:gender}).
+
+
 
 \begin{table}[t]
   \centering
-  \caption{Gender-differentiated baseline parameters.}
+  \caption{Gender-specific baseline simulation parameters.}
   \label{tab:gender}
   \begin{tabular}{@{}lcc@{}}
     \toprule
     Parameter & Men & Women \\
     \midrule
-    Retirement age & 65 & 60 \\
-    Life expectancy at retirement & 86 & 90 \\
-    Contribution density & 58.3\% & 49.6\% \\
-    Resulting required return $\Rstar$ & UF + 5.4\% & UF + 8.8\% \\
+    Retirement age (years)          & 65      & 60      \\
+    Life expectancy at retirement (years) & 86 & 90     \\
+    Contribution density            & 58.3\%  & 49.6\%  \\
+    Required return $R^*$           & 5.3\%   & 8.4\%   \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The female case sits well outside the feasible region of our grid: density alone places it below the 58\% feasibility boundary identified in the previous subsection, and the other two factors compound the problem. The interpretation is the same as for the density bottleneck, only sharper: glidepath design alone cannot close the female gap. Parametric reforms---retirement age, solidarity pillar, contribution incentives, or some combination---are necessary complements.
+The case of women sits well outside the feasible region: contribution density 
+alone places it below the $58\%$ lower bound identified in the previous 
+subsection, and the other two factors---earlier retirement age and longer 
+life expectancy---compound the problem. The implication is clear: no 
+glidepath can deliver an adequate pension for the representative female 
+worker under current conditions. Structural reforms are necessary 
+complements---such as raising the retirement age for women, increasing 
+contribution rates, or strengthening solidarity mechanisms.
 
 \section{Discussion of Results, Implementation, and Statistical Considerations}
 % Draft owner in source document: Omar Larre
 
-Broadly speaking, it is not difficult to present a glidepath that appears attractive under a particular calibration. A sufficiently rich grid of risk limits, together with a sufficiently favorable set of assumptions about wages, contribution density, annuity pricing, asset-universe selection, and future returns, can easily produce a curve that clears a chosen target. The relevant question is therefore not whether one successful curve can be found, but what the pattern of results says about the feasible role of portfolio design in the Chilean TDF system. A reasonable reader may ask: What exactly does $\Psi$ measure? Which findings can serve as inputs for professional and regulatory discussion? How should the terminal CVaR limit be interpreted when pension modality, post-retirement risk, and duration matching are taken into account? What role does the chosen asset universe play in the interpretation of the exercise? Finally, what statistical and modeling choices should temper the numerical interpretation of the results?
+Broadly speaking, it is not difficult to find a CVaR glidepath that appears 
+attractive under a particular set of assumptions. A sufficiently rich grid of 
+risk limits, together with sufficiently favorable assumptions about wages, 
+contribution density, annuity pricing, asset selection, and future returns, 
+can easily produce a glidepath that clears the chosen return target. The more 
+relevant question is therefore not whether one successful glidepath can be 
+found, but what the overall pattern of results says about the role 
+of portfolio design in the Chilean TDF system.
 
-The following considerations are intended to clarify the status of the results, the implementation scope of the exercise, and what the results do, and do not, establish.
+With that in mind, a careful reader may reasonably ask the following questions. 
+First, what exactly does $\Psi$ measure, and how should it be interpreted? 
+Second, which findings are robust enough to serve as inputs for professional 
+and regulatory discussion? Third, how should the terminal CVaR limit $B$ be 
+interpreted in light of post-retirement risk and the choice of pension modality? 
+Fourth, what role does the chosen asset universe play in the results? 
+Finally, what statistical and modeling limitations should temper the numerical 
+interpretation of the findings?
+
+The following considerations clarify what the results mean, what they do not 
+mean, and how far they can reasonably be taken as inputs for regulatory 
+discussion.
 
 \subsection{Core Interpretation and Inputs for Policy Discussion}
 
-The technical interpretation of the results, and their relevance for regulatory discussion, proceeds in layers. We first clarify what the success statistic measures, then discuss how the glidepath results can inform regulatory design, and finally identify the economic constraints that can make the target infeasible regardless of the portfolio rule.
+The technical interpretation of the results, and their relevance for regulatory discussion, proceeds in layers. We first clarify what the success statistic measures, then discuss how the glidepath results can inform regulatory design, and finally identify the economic constraints that can make the target return infeasible regardless of the glidepath selected.
 
-With respect to the interpretation of $\Psi$, it is important to emphasize that $\Psi$ is not a probability of success for a particular manager following a fully specified investment rule. Formally, the empirical $\Psi$ defined in equation~\eqref{eq:psi-estimator} averages over two sources of randomness: the feasible portfolio trajectories assembled from monthly allocations sampled with Hit-and-Run, and the simulated return paths contained in the Monte Carlo array $\mathcal{R}=\{R_{s,t}\}$. Thus, $\Psi$ should be read as the fraction of portfolio--scenario combinations in which the annualized return clears $\Rstar$, under the risk constraints imposed by the glidepath. It is neither a best-case nor a worst-case statistic over the feasible set. Rather, it is an average feasibility measure: it asks whether the risk budget specified by $L$ leaves a sufficiently large mass of feasible allocation trajectories capable of reaching the target return.
+With respect to the interpretation of $\Psi$, it is important to emphasize that $\Psi$ is not a probability of success for a particular manager following a fully specified investment rule. Formally, the empirical $\Psi$ defined in equation~\eqref{eq:psi-estimator} averages over two sources of randomness: the feasible portfolio trajectories assembled from monthly asset allocations sampled with Hit-and-Run, and the simulated return scenarios contained in the returns  array $\mathcal{R}=\{R_{s,t}\}$. Thus, $\Psi$ should be read as the fraction of feasible portfolio--returns scenario combinations in which the annualized return clears $\Rstar$, under the risk constraints imposed by the glidepath. It is neither a best-case nor a worst-case statistic over the feasible set. Rather, it is an average feasibility measure: it asks whether the risk budget specified by the glidepath ($L$ curve) leaves a sufficiently large mass of admissible  asset allocation trajectories capable of reaching the target return.
 
-Given this interpretation, the central design problem is one of constrained optimality: among CVaR-limit glidepaths that satisfy the sufficiency criterion, how do different paths balance sufficiency and cumulative risk under a given regulatory objective? The exercise operationalizes this question over an interpretable policy class of piecewise-linear CVaR curves. This class is deliberately simple, but not narrow in a regulatory sense: many relevant decreasing risk paths can be represented directly in this form, and more irregular decreasing paths can be conservatively approximated or enveloped by a piecewise-linear CVaR ceiling.
+Given this interpretation, the central design problem is one of constrained 
+optimality: among all CVaR glidepaths that clear the $\Psi > 50\%$ success 
+threshold, how do different glidepaths trade off the probability of delivering a return higher than $R^*$ against cumulative risk $\Gamma$? The exercise operationalizes 
+this question over a class of piecewise-linear CVaR curves. This class is 
+deliberately simple, but not narrow in a regulatory sense: many relevant 
+decreasing CVaR glidepaths can be represented directly in this form, and more 
+irregular decreasing paths can be conservatively approximated by a 
+piecewise-linear CVaR ceiling.
 
-Within this class, and fixing the terminal CVaR limit at $B=3\%$---a reasonably conservative level for portfolios close to retirement---the full-pool optimum $(A,B,\TA)=(6\%,3\%,58)$ is the minimum-$\Gamma$ successful point of the policy grid considered here. It should not be interpreted as a globally optimal glidepath over all possible dynamic risk policies, but it is a meaningful benchmark within the regulatory design problem studied in the paper and under the simulation conditions of the exercise, including the terminal CVaR limit of 3\%, the selected asset indices, return-generation engine, and Monte Carlo implementation.
 
-Beyond the exact optimum, the analysis shows that direct control of portfolio-level CVaR can generate interpretable glidepath rules. For example, instead of prescribing age-dependent equity allocations, a regulator or policymaker could evaluate paths of admissible downside risk and ask whether they are compatible with a target replacement objective. Under the baseline calibration, the relevant trade-off is between the amount of risk allowed early in life and the age at which de-risking begins: lower early-life risk requires delaying the transition, while higher early-life risk allows the transition to start earlier. In particular, the results can inform the following question: what is the earliest age at which risk can begin to decline while still satisfying the minimum-sufficiency criterion? In the filtered exercise, this question is evaluated under a high early-life CVaR limit, fixed at $A=10\%$, and the same terminal CVaR limit used throughout the analysis, $B=3\%$. Under those conditions, the exercise identifies approximately age 45 as the first transition age that crosses the sufficiency threshold, according to the filtered specification $(A,B,\TA)=(10\%,3\%,45)$. Values of $\TA$ below 45 fail even under this generous early-risk allowance. Thus, the method is useful both for constructing policy-relevant CVaR glidepaths and for informing concrete policy discussions about how early risk can be reduced without losing sufficiency.
+Within this class, and fixing the terminal CVaR limit at $B=3\%$---a 
+reasonably conservative level for portfolios close to retirement---the 
+minimum-risk optimum $(A,B,T_A)=(6\%,3\%,58)$ is the lowest-$\Gamma$ 
+glidepath that clears the $\Psi > 50\%$ success threshold within the grid 
+considered here. It should not be interpreted as a globally optimal solution 
+over all possible risk policies, but as a meaningful benchmark conditional 
+on the modeling choices of this exercise: the terminal CVaR limit of $3\%$, 
+the selected asset universe, the return-generation engine, and the Monte 
+Carlo implementation.
 
-The main economic constraint behind these feasibility results is contribution density. It is not merely another input parameter. It is the dominant feasibility parameter in the Chilean application. The density exercise shows a narrow transition region: below roughly 58\%, no glidepath in the grid succeeds, while above roughly 68\%, virtually all do. This sharp transition is economically intuitive. Lower density reduces contributions, which raises $\Rstar$ nonlinearly because the worker has less capital to compound over the same horizon. But the way we model density is intentionally simple: a worker contributes a constant fraction $\beta$ of the statutory contribution every month. This preserves total career contributions but suppresses timing risk. In reality, missed contributions early in life are more damaging than missed contributions near retirement, because they forgo decades of compounding. Conversely, contribution gaps clustered late in life have a different effect on $\Kstar$ and on realized wealth. A richer model would simulate employment histories, unemployment spells, informality, maternity-related gaps, and wage scarring jointly. The qualitative conclusion should therefore be read conditionally but clearly: under the assumptions of the exercise, sufficiently low contribution density can make the glidepath problem infeasible.
+Beyond the exact optimum (however defined), the analysis shows that direct 
+control of risk through portfolio-level CVaR metrics yields glidepath rules 
+that are straightforward to interpret from a regulatory standpoint. Instead 
+of prescribing age-dependent equity allocations, a regulator can evaluate 
+admissible CVaR paths and ask whether they are compatible with delivering 
+the required return $R^*$. The relevant trade-off is clear: lower early-life 
+risk requires delaying the transition age $T_A$, while higher early-life risk 
+allows de-risking to begin earlier.
 
-The gender results sharpen the same point. They should be understood as a diagnosis of structural constraints rather than as a recommendation to solve gender inequality through portfolio risk. The female case is difficult because several parameters move in the same direction: lower density, earlier retirement, and longer life expectancy. The resulting $\Rstar$ is so high that the investment problem becomes infeasible within the admissible risk range considered here. This is not a failure of the CVaR-glidepath methodology. The results above suggest that allowing sufficient risk early in the life cycle can be valuable, and that de-risking too early can be costly. In the female case, however, a more aggressive glidepath by itself is not enough to offset the structural gap. For policy discussion, relevant complementary instruments include parametric and institutional tools---contribution incentives, retirement age, fiscal transfers, childcare and labor-market policies, annuity design, or solidarity mechanisms.
+A concrete illustration: what is the earliest age at which risk can begin to 
+decline while still clearing the $\Psi > 50\%$ success threshold? Under a 
+high early-life CVaR limit $A=10\%$ and the same terminal limit $B=3\%$ used 
+throughout the analysis, the exercise identifies $T_A=45$ years as that boundary 
+age. Glidepaths with $T_A < 45$ years fail to deliver $R^*$ even under this 
+generous early-risk allowance, regardless of how much risk is taken during 
+the constant-risk period. This illustrates the practical value of the 
+framework: it translates a concrete policy question---how early can de-risking 
+begin without compromising the ability to deliver adequate pensions?---into 
+a clear, simulation-based answer.
 
-\subsection{Terminal CVaR, Post-Retirement Risk, and Duration-Matching Considerations}
+The main economic constraint behind these  results is the contribution density. It is not merely another input parameter. It is the dominant factor in the Chilean application. The density exercise shows a narrow transition region: below roughly 58\%, no glidepath in the grid succeeds, while above roughly 68\%, virtually all do. This sharp transition is economically intuitive. Lower density reduces contributions, which raises $\Rstar$ nonlinearly because the worker has less capital to compound over the same horizon. But the way we model density is intentionally simple: a worker contributes a constant fraction $\beta$ of the statutory contribution every month. This preserves total career contributions but suppresses timing risk. In reality, missed contributions early in life are more damaging than missed contributions near retirement, because they forgo decades of compounding. Conversely, contribution gaps clustered late in life have a different effect on $\Kstar$ and on realized wealth. A richer model would simulate employment histories, unemployment spells, informality, maternity-related gaps, and wage scarring jointly. The qualitative conclusion should therefore be read conditionally but clearly: under the assumptions of the exercise, sufficiently low contribution density can make the glidepath problem infeasible.
+
+The results for women highlight the same point. They should be understood as 
+a diagnosis of structural differences, not as a suggestion that gender 
+inequality in pensions can be addressed through portfolio investment decisions alone. 
+The case of women is difficult because three parameters all move in the 
+same direction---lower contribution density, earlier retirement age, and 
+longer life expectancy---each independently pushing $R^*$ higher. The 
+combined effect is an $R^*$ so high that the investment problem becomes 
+infeasible within the parameters  considered here. This is not, of course, a failure of the CVaR-glidepath methodology.
+
+The results consistently show that allowing sufficient risk early in the 
+working life is valuable, and that de-risking too early is costly. But in 
+the case of women, even the most aggressive glidepath cannot deliver $R^*$ 
+under current conditions.  Structural reforms such 
+as raising the retirement age for women, increasing contribution rates, or 
+strengthening solidarity mechanisms are required.
+
+\subsection{Choice of the Eligible Assets and Implications}
+
+A further consideration concerns the specification of the eligible assets universe. The objective of the exercise is not to identify the best possible collection of indices or investment strategies, nor to solve a portfolio-optimization problem over the full set of instruments available to Chilean pension managers. Rather, this study  uses a compact and economically plausible set of indices spanning the main asset classes relevant for the Chilean pension system: local fixed income, local equities,  global fixed income, global equities, and alternative assets. The eligible universe was treated as an input specification --- its composition was not the object of any search, and we did not iterate over alternative index sets in order to maximize $\Psi$. Likewise, the asset universe was not tuned \textit{ex post} to improve the reported results. This is important because the purpose of the exercise is to evaluate whether a given CVaR-limit glidepath leaves a sufficiently large set of feasible portfolio trajectories capable of reaching the target return, not to overfit the investment universe itself.
+
+This distinction matters for the interpretation of the results. A richer asset universe, or a more carefully selected set of active strategies, could improve the attainable frontier available to an optimizing manager, and in that sense the current universe should not be read as an exhaustive opportunity set. However, $\Psi$ is not the return of an optimized portfolio --- it is an average  measure over sampled feasible portfolios--return scenarios combinations. Expanding the asset universe can therefore shift the results in either direction: adding high-quality return sources may improve $\Psi$, while adding low-return, redundant (highly correlated)  or poorly compensated assets may lower it. The exercise should therefore be read as a test of whether a representative, but not exhaustive, investment universe is capable of supporting glidepaths that achieve $\Psi > 50\%$.
+
+\subsection{Diversification and Liquidity Considerations}
+
+We note that the baseline exercise does not impose an explicit diversification constraint, such as a maximum weight per asset class or a minimum effective number of holdings, nor does it impose an explicit liquidity constraint. This modeling choice reflects the objective of the paper: to evaluate CVaR-limit glidepaths, not to prescribe a specific asset allocation rule or a complete investment mandate. In practice, diversification and liquidity requirements could be added as additional admissibility constraints without altering the structure of the framework.
+
+This omission does not invalidate the main results for three reasons. First, the statistic reported in the paper is not based on a single optimized portfolio. It is computed over randomly sampled feasible allocations, so the evaluation reflects the behavior of a broad set of admissible portfolios rather than the performance of an extreme corner solution. In this sense, the exercise is less exposed to the concentration problems that often arise in unconstrained portfolio optimization.
+
+Consistent with this interpretation, as a diagnostic check, we compute the Herfindahl--Hirschman Index (HHI) of the sampled feasible allocations,
+\[
+\mathrm{HHI}(\Omega)=\sum_{j=1}^{N}\omega_j^2,
+\]
+where $\omega_j$ is the portfolio weight of asset $j$ and $N$ is the number of eligible indices. Lower values indicate more diversified allocations; with nine eligible indices, the equal-weight lower bound is $1/9 \approx 0.111$. For the five successful boundary glidepaths reported in Table~\ref{tab:boundary}, the HHI is remarkably stable across curves. Across 4.8 million allocation-month observations per curve, the mean HHI ranges from 0.1987 to 0.1996, the median ranges from 0.1885 to 0.1888, and the 90th percentile remains between 0.259 and 0.261. In effective-number terms, $1/\mathrm{HHI}$, the typical sampled portfolio is therefore equivalent to roughly five equally weighted positions. This evidence suggests that the randomly sampled feasible allocations are not dominated by highly concentrated corner portfolios.
+
+Second, the eligible assets are represented by broad market indices. These indices serve as proxies for diversified investment vehicles, and most correspond to liquid public-market exposures. The relevant unit of allocation in the exercise is therefore not an individual security, but an already diversified investment strategy.
+
+Third, in the particular Chilean calibration studied here, the terminal CVaR limit indirectly restricts the use of high-risk alternative-asset proxies near retirement. Because the glidepath converges to a low terminal CVaR limit, terminal portfolios naturally shift toward lower-risk public-market exposures and away from asset classes whose risk profiles are inconsistent with that constraint. In this calibration, those lower-risk exposures also tend to be the more liquid public-market components of the eligible universe. This should not be interpreted as a substitute for a formal liquidity rule: if policymakers wish to guarantee a minimum level of liquid assets in terminal portfolios, such a requirement should be imposed explicitly.
+
+\subsection{Terminal CVaR, Post-Retirement Risk, and Duration Matching in the Chilean System}
 
 The baseline exercise in this paper models the retirement objective through Chilean \emph{rentas vitalicias}, or life annuities. This is a natural benchmark for a minimum-sufficiency exercise because the annuity converts the accumulated balance at retirement into a lifetime pension and removes post-retirement investment and longevity risk from the worker. It is not, however, the only pension modality in Chile. Pension modality choices should be distinguished between the full flow of new retirees and the subset of retirees who enter the Sistema de Consultas y Ofertas de Montos de Pensión (SCOMP), the electronic quotation system through which eligible retirees request and compare pension offers. In the twelve-month window from July 2024 to June 2025, the Superintendencia de Pensiones reports that 43.8\% of new retirees entered SCOMP, while the remaining 56.2\% did not meet the requirements to opt for a life annuity and therefore retired directly under programmed withdrawal. Among SCOMP entrants, annuity-based modalities accounted for 54.6\% of accepted pensions, while programmed withdrawal accounted for 45.4\%. Measured over the full universe of new retirees, however, programmed withdrawal remained the dominant modality, representing approximately 76\% of new pensions \cite{spScomp2025}.
 
@@ -463,23 +871,153 @@ To gauge the order of magnitude, we perform a simple rate-risk stress using the 
 
 This calculation suggests that a terminal CVaR limit of 3\% may be slightly conservative if the regulatory objective includes accommodating materially longer-duration UF portfolios intended to match life-annuity liabilities. If policymakers wanted terminal portfolios to accept this higher interest-rate sensitivity, a terminal CVaR limit closer to 3.5\% or 4\% could be considered. Such a relaxation would expand the admissible set relative to the baseline exercise. Since higher CVaR limits allow portfolios with greater risk exposure and, in this setting, potentially higher expected return and carry, the baseline results should be read as conservative with respect to terminal duration accommodation. More generally, any such relaxation would use the results in this paper as a conservative baseline rather than overturning the direction of the interpretation.
 
-\subsection{Choice of Asset Universe and Scope of the Exercise}
-
-A further consideration concerns the specification of the eligible asset universe. The objective of the exercise is not to identify the best possible collection of indices or investment strategies, nor to solve a portfolio-optimization problem over the full set of instruments available to Chilean pension managers. Rather, the paper uses a compact and economically plausible set of indices spanning the main asset classes relevant for the Chilean pension system: local fixed income, local equity, global fixed income, global equity, and alternatives. The eligible universe was treated as an input specification rather than as an object of the search. We did not iterate over many alternative index sets in order to maximize $\Psi$, and the asset universe was not tuned ex post to improve the reported results. This is important because the purpose of the exercise is to evaluate whether a given CVaR-limit glidepath leaves a sufficiently large set of feasible portfolio trajectories capable of reaching the target return, not to overfit the investment universe itself.
-
-This distinction matters for the interpretation of the results. A richer asset universe, or a more carefully selected set of active strategies, could improve the attainable frontier available to an optimizing manager. In that sense, the current universe should not be read as an exhaustive opportunity set. However, the statistic $\Psi$ used in the paper is not the return of an optimized portfolio. It is an average feasibility measure over sampled portfolio--scenario combinations inside the admissible set. Expanding the asset universe can therefore change the distribution of sampled feasible portfolios in either direction: adding high-quality return sources may improve the results, while adding low-return, redundant, or poorly compensated risks may lower the average success rate. The exercise should thus be interpreted as a test of sufficiency under a reasonable representative universe.
-
 \subsection{Some Considerations Regarding Potential Statistical Biases}
 
-Several parameters are fixed by design before the grid search is performed, including the minimum-sufficiency target, the 90\% CVaR confidence level, the terminal CVaR limit, and the piecewise-linear form of the risk curve. We then apply the optimality criterion of the paper: among the admissible curves that reach sufficiency, choose the one with the lowest cumulative risk. This limits overfitting because the risk metric and policy class are not tuned ex post to improve the results. The optimum is therefore conditional on these modeling choices, but it is not the product of searching over them.
+Several parameters were fixed by design before the simulation, including the
+minimum-sufficiency target ($\Psi > 50\%$), the $90\%$ CVaR confidence level,
+the terminal CVaR limit, and the piecewise-linear glidepath structure. We then
+applied the optimality criterion of the paper: among the glidepaths satisfying
+the sufficiency constraint ($\Psi > 50\%$), we select the one with the lowest
+cumulative risk. This limits overfitting because the risk metric and policy class
+are not tuned \textit{ex post} to improve the results. The optimum is therefore conditional
+on these modeling choices, but it is not the product of searching over them.
 
-The return-generation model is another possible source of statistical bias. Financial prices are not generated by an independent Gaussian process: returns can exhibit regime changes, volatility clustering, time-varying correlations, and asymmetric tail dependence. The Gaussian-copula engine is useful because it preserves empirical marginal behavior and is computationally tractable, but it is still a simplification of a more complex time-series process. We do not view the construction of a superior return generator as the object of this paper. The framework is modular, and alternative engines such as block bootstraps, regime-switching models, $t$-copulas, or stressed scenarios could be substituted in future work.
+The return-generation model is another possible source of statistical bias.
+Financial prices are not generated by an independent Gaussian process: returns
+can exhibit regime changes, volatility clustering, time-varying correlations,
+and asymmetric tail dependence. The Gaussian-copula engine is useful because
+it preserves empirical marginal behavior and is computationally tractable, but
+it is still a simplification of a more complex time-series process. We do not
+view the construction of a superior return generator as the goal of this
+study. The framework is modular, and alternative engines---such as block
+bootstraps, regime-switching models, $t$-copulas, synthetic data, or stressed
+scenarios---could be employed in conjunction with the framework presented here.
 
-Finally, the CVaR estimates and the Hit-and-Run samples are finite-simulation objects. Each monthly CVaR uses the worst 10\% of $S=10{,}000$ simulated outcomes, and the feasible allocations are sampled with a burn-in of $b_{\mathrm{burn}}=20$. In practice, the impact of this short burn-in is mitigated by the scale of the retained sample: for each month we keep $I=10{,}000$ post-burn-in draws, and the cross-month permutations described in Appendix~\ref{app:hit-and-run} further dissociate the trajectories used to evaluate $\Psi$ from the sequential ordering of any single Hit-and-Run chain. These implementation choices are therefore unlikely to drive the broader feasibility patterns reported above, which are dominated by the effects of risk timing and contribution density.
+Finally, the CVaR estimates and the Hit-and-Run samples are finite-simulation objects. Each monthly CVaR uses the worst 10\% of $S=10{,}000$ simulated return outcomes, and the feasible asset allocations are sampled with a burn-in of $b_{\mathrm{burn}}=20$. In practice, the impact of this short burn-in is mitigated by the scale of the retained sample: for each month we keep $I=10{,}000$ post-burn-in draws, and the cross-month permutations described in Appendix~\ref{app:hit-and-run} further dissociate the trajectories used to evaluate $\Psi$ from the sequential ordering of any single Hit-and-Run chain. These implementation choices are therefore unlikely to drive the broader patterns reported above, which are dominated by the shape of the glidepath  and contribution density.
 
-\section{Conclusions}
+\section{Concluding Remarks}
 
-The conclusions, I suggest, should be divided into (i) our method and (ii) technical implications for professional and regulatory discussion in the Chilean system.
+The following remarks summarize the main contributions and findings 
+of this study. They are organized in two groups: the first addresses 
+the proposed methodology and its broader applicability; the second 
+covers some substantive conclusions related to  the Chilean pension reform.
+
+
+\paragraph{Methodological Observations.}
+
+
+\begin{itemize}
+\item The framework presented herein is an effective tool for TDF design when a clear 
+return objective can be specified. By translating that objective into 
+a minimum required return $R^*$, it identifies multiple candidate 
+glidepaths---each defined by a declining CVaR constraint---that are 
+capable of delivering $R^*$ with a satisfactory probability. Moreover, 
+the framework is agnostic to the choice of return-generation engine: 
+alternative models---such as block bootstraps or regime-switching 
+specifications---can be substituted without altering the core 
+structure.
+
+\item The Hit-and-Run algorithm provides an efficient 
+mechanism for sampling uniformly over the feasible allocation space 
+at each point in time. Although the technical details are confined 
+to the Appendix A, it is worth emphasizing that the algorithm is 
+general: it applies to any convex feasible set defined by a 
+portfolio-level risk constraint, regardless of the number of assets 
+or the specific form of the CVaR limit curve.
+
+\item The fact that the method is able to identify multiple successful 
+glidepaths---those clearing the $\Psi > 50\%$ threshold---naturally 
+invites the incorporation of additional selection criteria. The cumulative 
+risk metric $\Gamma$ introduced in this paper provides one such criterion, 
+allowing the selection of the least risky glidepath among all successful 
+candidates. Other potential criteria could include a minimum diversification 
+requirement (e.g., measured via the Herfindahl index), a maximum 
+concentration limit by asset class, or a maximum drawdown constraint. 
+The framework can accommodate such extensions without modification to 
+its core structure.
+
+
+\item The method decomposes the portfolio selection  process into 
+two distinct steps. A risk manager first defines, at each point in 
+time, the set of feasible asset allocations consistent with the 
+CVaR glidepath. The portfolio manager then selects from within that 
+set. This formulation places less reliance on the manager's ability 
+to identify an optimal portfolio, and instead ensures that every 
+asset allocation available to the manager belongs to a wide set of 
+choices---all of which carry a high probability of meeting the 
+return target.
+
+\item At a broader level, the approach presented here offers a complement to the 
+canonical (Markowitz) mean--variance paradigm and to later risk-based portfolio-optimization methods, including CVaR optimization in the sense of Rockafellar--Uryasev \cite{rockafellar2000}. Rather than selecting a single optimal portfolio by maximizing return 
+subject to a risk constraint, the focus here is on identifying a 
+sufficiently large set of portfolios capable of delivering a return 
+above a minimum threshold with high probability. The distinction 
+is subtle but meaningful: it reframes the portfolio selection problem as  a
+feasibility-and-sufficiency problem, rather than an optimization 
+one, and invites further reflection on the role of the portfolio 
+manager in the investment process.
+
+
+\end{itemize}
+
+\paragraph{Chilean Pension Reform Observations.}
+
+\begin{itemize}
+
+\item Under reasonable assumptions---specifically, a contribution 
+rate of $16\%$ and a contribution density at or above $60\%$---the 
+framework confirms that it is indeed possible to design TDFs capable 
+of delivering adequate pensions. In fact, a substantial number of 
+candidate glidepaths clear the $\Psi > 50\%$ success threshold, 
+suggesting that the design problem is feasible under realistic 
+conditions and that this conclusion is robust rather than the product 
+of a single favorable choice of simulation parameters.
+
+\item Two parameters emerge as the most important factors that drive the success potential of a glidepath:  (i) the transition age $T_A$---the age at which the fund 
+begins reducing risk---is a critical design variable--- 
+glidepaths that de-risk too early consistently fail to deliver $R^*$, 
+regardless of how much risk is taken in the early phase; and (ii) contribution 
+density acts as a hard constraint---below a critical threshold, no 
+glidepath succeeds, and portfolio design alone cannot compensate for 
+structurally low contribution rates. These two findings together 
+define the boundary conditions within which TDF design is possible.
+
+
+
+\item The analysis highlights a stark gender gap. Under current 
+conditions---earlier retirement age, longer life expectancy, and 
+lower contribution density---the required return $R^*$ for women 
+lies well outside the feasible region, meaning that no glidepath 
+can deliver an adequate pension for the representative female worker. 
+This is not a limitation of the framework; it is a diagnosis. 
+Adequate pensions for women may therefore require complementary policy measures, such as higher contribution rates, adjusted 
+retirement ages, or strengthened solidarity mechanisms.
+
+\item A key methodological lesson from Chile's own experience with 
+the \textit{multifondos} system is directly relevant here. When risk 
+is controlled indirectly---through asset-class limits rather than 
+at the portfolio level---funds do not necessarily rank by risk 
+as intended: the most conservative fund may, over extended periods, 
+outperform the riskiest one, and Sharpe-ratio rankings can be 
+systematically inverted relative to the regulator's original intent 
+\cite{schlechter2019,pagnoncelli2023}. The \textit{fondos 
+generacionales} are exposed to the same risk if portfolio-level 
+risk management is not embedded in their design. A TDF intended 
+for workers aged 55, for example, should, by construction, carry less risk than 
+one intended for workers aged 25---at all times, not just on 
+average. Direct control of risk via a portfolio-level CVaR 
+constraint, as proposed here, provides that guarantee in a way 
+that asset-class limits alone cannot.
+
+
+
+\item The framework is well suited to inform the regulatory discussion 
+surrounding Chile's upcoming pension reform. By making the trade-offs 
+between risk, return, and contribution density explicit and 
+quantifiable,  the method presented provides policymakers with a transparent and 
+flexible tool for evaluating competing glidepath (TDF) designs.  
+\end{itemize}
+
 
 \bibliographystyle{unsrtnat}
 \bibliography{references}
