@@ -1,4 +1,3 @@
-% !TEX TS-program = xelatex
 \documentclass[11pt]{article}
 
 \usepackage[margin=1in]{geometry}
@@ -15,10 +14,15 @@
 \usepackage{xurl}
 \usepackage[hidelinks]{hyperref}
 
+% paquete de apendice
+\usepackage[title]{appendix}
+% Paquete de figuras/tablas flotantes
+\usepackage{float}
+
 \usetikzlibrary{arrows.meta}
 
 \setlength{\parindent}{1.25em}
-\setlength{\parskip}{0pt}
+\setlength{\parskip}{3pt}
 \linespread{1.05}
 
 \captionsetup{
@@ -202,7 +206,7 @@ itself but also on accumulated wealth, market conditions, or
 realized portfolio risk \cite{forsyth2017}. Such designs have 
 advantages and disadvantages.  A full discussion of this topic, however, is beyond the scope of this study. The 
 framework we propose is deliberately non-adaptive: the CVaR limit 
-at time $T$ is determined ex ante and depends only on $T$, not on 
+at time $T$ is determined  \textit{ex ante}  and depends only on $T$, not on
 the participant's accumulated balance. This is a design choice, 
 not an oversight.
 
@@ -232,7 +236,7 @@ Figure~\ref{fig:cvar-glidepath} shows a typical CVaR-limit glidepath. A CVaR-lim
 
 % POINT TO DISCUSS
 
-\begin{figure}[t]
+\begin{figure}[H]
   \centering
   \begin{tikzpicture}[x=0.13cm,y=0.42cm,>=Latex]
     \draw[->,thick] (0,0) -- (82,0) node[below] {   $t$};
@@ -319,7 +323,7 @@ An asset allocation $\Omega$ is deemed feasible for month $t$, with respect to t
 These scalar returns are then sorted from lowest to highest, and the CVaR is estimated as the average of the worst ten percent of them, since we work with a 90\% confidence level.
 
 \paragraph{Feasible asset-allocations array.}
-Using a Monte Carlo sampling algorithm based on the Hit-and-Run method (see Appendix~\ref{app:hit-and-run}; the algorithm follows \citet{smith1984}), we construct a feasible asset allocation array  $\mathbf{\Omega}$  of dimension $I \times Q$, where $I$ denotes the number of feasible portfolios to be constructed. Each entry $(i,t)$ of this array corresponds to a $N$-dimensional vector $\Omega$ that satisfies two conditions: (a) its CVaR limit is below $L(t)$, the limit specified by the glidepath for month $t$; and (b) the set of return vectors used to compute its CVaR corresponds to column $t$ of the return array $\mathcal{R}$. That is, the set of return vectors employed to calculate the CVaR for month $t$ is $\{R_{s,t}\}_{s=1}^{S}$.
+Using a Monte Carlo sampling algorithm based on the Hit-and-Run method (see Appendix~\ref{app:hit-and-run}; the algorithm follows \citet{smith1984}), we construct a feasible asset allocation array  $\mathbf{\Omega}$  of dimension $I \times Q$, where $I$ denotes the number of feasible portfolios to be constructed. Each entry $(i,t)$ of this array corresponds to an $N$-dimensional vector $\Omega$ that satisfies two conditions: (a) its CVaR limit is below $L(t)$, the limit specified by the glidepath for month $t$; and (b) the set of return vectors used to compute its CVaR corresponds to column $t$ of the return array $\mathcal{R}$. That is, the set of return vectors employed to calculate the CVaR for month $t$ is $\{R_{s,t}\}_{s=1}^{S}$.
 
 \paragraph{Return scenarios and feasible portfolios.}
 We assume that the TDF manager rebalances the portfolio monthly. As mentioned before, a return scenario $s$, is defined as a sequence of $Q$ return vectors of dimension $N$, that is, $\{R_{s,1},\ldots,R_{s,Q}\}$. From the returns array we have $S$ such scenarios, where each row $s$ of that array defines one such scenario.
@@ -395,14 +399,21 @@ All monetary units are expressed in \textit{Unidades de Fomento}
 For readability, we drop the ``UF'' qualifier throughout.
  Because the UF absorbs inflation, every figure here should be read as a real  (inflation-adjusted) figure. 
 
-
-
-
 \paragraph{Salary evolution.}
-We assume a deterministic salary path consistent with the OECD methodology used in \emph{Pensions at a Glance}: constant real annual growth of 1.25\% throughout the working career \cite{oecd2025}. Starting from an index value of 100 at labor-market entry ($\Tstart=25$ years), the salary reaches approximately 164 by the statutory retirement age ($\TB=65$ years).
+We assume a deterministic salary path consistent with the OECD methodology used in \emph{Pensions at a Glance}: constant real annual growth of 1.25\% throughout the working career \cite{oecd2025}. Starting from an index value of 100 at labor-market entry ($\Tstart=25$ years), the salary reaches a value of approximately 164 by the statutory retirement age ($\TB=65$ years).
 
 \paragraph{Replacement rate.}
 The target replacement rate $\rho$ is the ratio of the monthly pension to a reference salary at retirement. We adopt $\rho=63\%$, the OECD average net replacement rate for full-career average-wage workers reported in \emph{Pensions at a Glance} (2025) \cite{oecd2025}. For the reference salary we follow the standard pension-calculation convention and use the average salary over the final 120 months (10 years) of the working career. This window is long enough to smooth out short-run fluctuations near retirement but short enough to anchor the pension to the worker's late-career earnings rather than the lifetime average.
+
+\paragraph{A representative worker.}
+We treat the representative worker as a gender-neutral individual.
+This is appropriate for the methodological focus of the paper; the
+gender-disaggregated case---which involves different life
+expectancies, contribution densities, and statutory retirement
+ages---introduces distinct issues that we return to in
+Section  5.2.
+
+
 
 \paragraph{Parameters specific to the Chilean case.}
 The Chilean institutional setting determines five additional inputs.
@@ -416,13 +427,7 @@ para el Mercado Financiero} \cite{sp2023mortality}, represents
 the average of men (86 years) and women (90 years).
 The contribution rate used in this exercise is $\lambda=16\%$ of salary, intended to capture the higher (compared to the current $10\%$) figure specified by the upcoming reform. The annuity discount rate is  3.2\% per year, in line with recent rates observed in the Chilean \emph{rentas vitalicias} (annuities) market  \cite{spRentasVitalicias}.
 
-\paragraph{A representative worker.}
-We treat the representative worker as a gender-neutral individual. 
-This is appropriate for the methodological focus of the paper; the 
-gender-disaggregated case---which involves different life 
-expectancies, contribution densities, and statutory retirement 
-ages---introduces distinct issues that we return to in 
-Section  5.2.
+
 
 \paragraph{Calculation of $\Kstar$.}
 $K^*$ denotes the capital the worker must have accumulated 
@@ -448,16 +453,16 @@ of 20 (actually 20~UF per month, roughly equivalent to USD~900, and
 consistent with the median Chilean salary), we obtain 
 $K^* \approx 3{,}800$.
 \paragraph{Calculation of $\Rstar$.}
-Given $\Kstar$, $\Rstar$ is the constant annualized real return that, applied to the stream of monthly contributions over the working career, exactly accumulates $\Kstar$ at retirement. It is determined by solving:
+Given $\Kstar$, $\Rstar$ is the constant annualized real return that, applied to the stream of monthly contributions over the working career, exactly accumulates $\Kstar$ at retirement. It is determined by first solving for the monthly rate $r^*$:
 
 \begin{equation}
-K^* = \lambda \sum_{t=1}^{N} S_t (1 + R^*)^{N-t},
+K^* = \lambda \sum_{t=1}^{Q} S_t (1 + r^*)^{Q-t},
 \end{equation}
-where $N = 12 \times (T_B - T_{\text{start}}) = 480$ months, $S_t$ is 
+where $Q = 12 \times (T_B - T_{\text{start}}) = 480$ months, $S_t$ is
 the real salary in month $t$ along the path defined in the 
-salary-evolution subsection, $\lambda = 16\%$, and $R^*$ is the monthly 
+salary-evolution subsection, $\lambda = 16\%$, and $r^*$ is the monthly
 required rate necessary to achieve a capital of $K^*$.
-The equation is solved numerically with an iterative procedure.
+The equation is solved numerically with an iterative procedure. The annualized rate is then obtained as $\Rstar = (1+r^*)^{12}-1$.
 
 
 
@@ -475,22 +480,20 @@ broadly, of the Latin American experience. The \textit{Superintendencia de
 Pensiones} reports average contribution densities of approximately 
 $58\%$ for men and $50\%$ for women \cite{sp2024ficha}.
 
-Modeling each worker's individual contribution pattern explicitly 
-is beyond the scope of this study. Instead, we adopt a transparent 
-approximation: rather than alternating between full contributions 
+Modeling each worker's individual contribution pattern explicitly is beyond the scope of this study. Instead, we adopt a transparent approximation: rather than alternating between full contributions
 and zero, we assume the worker contributes a constant fraction 
 $\beta$ of the statutory amount every month over the working career, 
 with $0 < \beta \leq 1$. This preserves total career contributions 
 while smoothing them uniformly across months.
 
 Therefore, the savings equation is modified accordingly. The monthly 
-contribution becomes $\beta\lambda S_t$, and $R^*$ is found by solving:
+contribution becomes $\beta\lambda S_t$, and $r^*$ is found by solving:
 \begin{equation}
-K^* = \beta\lambda \sum_{t=1}^{N} S_t (1 + R^*)^{N-t}.
+K^* = \beta\lambda \sum_{t=1}^{Q} S_t (1 + r^*)^{Q-t}.
 \end{equation}
 Under the baseline density $\beta=60\%$---chosen to be slightly above the observed male average of 58\%, so that the design problem is feasible while remaining realistic---and the other parameters defined previously, the solution is:
 \begin{equation}
-\Rstar =  5.5\%.
+\Rstar = (1+r^*)^{12}-1 = 5.5\%.
 \end{equation}
 This value anchors all subsequent calculations.
 
@@ -511,7 +514,7 @@ covers April 2007 through December 2025 at monthly frequency
 ($M=225$ observations). Table~\ref{tab:asset-universe} reports summary 
 statistics for each asset class; CVaR is computed at the 90\% confidence level.
 
-\begin{table}[t]
+\begin{table}[H]
   \centering
   \small
   \caption{List of eligible assets: key statistics based on monthly real returns (inflation-adjusted Chilean pesos).}
@@ -573,9 +576,7 @@ glidepaths, 66 are successful in the sense that $\Psi > 50\%$; that is, their pr
 of exceeding the target return $R^* = 5.5\%$ exceeds 50\%. Figure~\ref{fig:heatmap} displays $\Psi$ as a heatmap over the parameter grid, with the 
 initial CVaR limit $A$ on one axis and the transition age $T_A$ on the other.
 
-
-
-\begin{figure}[!htbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/heatmap.png}
   \caption{Heatmap of success probability $\Psi$ over the $(A,\TA)$ grid for $\Rstar=5.5\%$. The 50\% contour separates successful from unsuccessful CVaR glidepaths.}
@@ -592,9 +593,7 @@ longer ($T_A$) are complementary routes to clearing the $\Psi > 50\%$ threshold.
 
 Second, the boundary between successful and unsuccessful glidepaths reveals clearly the trade-off between the two design parameters. For each value of $A$ at or above $6\%$, there is a minimum transition age below which the glidepath fails---and this minimum age decreases as $A$ increases. In other words, if the regulator is willing to allow more risk during the initial period (a higher $A$), the transition to safer assets can begin earlier; if instead the maximum risk $A$ is held to a lower level, the transition must be delayed correspondingly. Table~\ref{tab:boundary} summarizes this trade-off.  Notice also that increasing $T_A$ beyond the minimum value required to achieve success improves only marginally the value of $\Psi$.
 
-
-
-\begin{table}[t]
+\begin{table}[H]
   \centering
   \caption{Minimum successful transition age $\TA$  by initial CVaR limit ($A$).}
   \label{tab:boundary}
@@ -634,19 +633,19 @@ beyond the scope of this simulation exercise.
 \paragraph{Importance of $\TA$.}
 To isolate the role of the transition age $\TA$, we consider a restricted version of the problem in which $A$ and $B$ are fixed. Specifically, we set $A=10\%$---essentially unconstrained, giving managers maximum flexibility in the early phase---and $B=3\%$ as before. The only question is then: when should the transition age begin?
 
-\begin{figure}[!htbp]
-  \centering
-  \includegraphics[width=0.9\textwidth]{figures/cvar_envelope_curves.png}
-  \caption{Filtered envelope of CVaR glidepaths for  $A=10\%$, and $B=3\%$. Successful glidepaths ($\Psi>50\%$) are shown in blue; unsuccessful glidepaths are shown in gray; and the minimum-$\Gamma$ successful glidepath  is shown in red. }
-  \label{fig:filtered-envelope}
-\end{figure}
-
 The results, displayed in Figure~\ref{fig:filtered-envelope}, show that $\Psi$ 
 increases monotonically with $T_A$, and first crosses the $\Psi > 50\%$ success 
 threshold at $T_A=45$ ($\Psi=50.13\%$, $\Gamma=39.57$). Glidepaths that begin 
 reducing risk before age 45 systematically fail to deliver the required return 
 $R^*=5.5\%$, regardless of how much risk is taken during the constant-risk 
 period.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{figures/cvar_envelope_curves.png}
+  \caption{Filtered envelope of CVaR glidepaths for  $A=10\%$, and $B=3\%$. Successful glidepaths ($\Psi>50\%$) are shown in blue; unsuccessful glidepaths are shown in gray; and the minimum-$\Gamma$ successful glidepath  is shown in red. }
+  \label{fig:filtered-envelope}
+\end{figure}
 
 This finding offers an important policy-relevant interpretation: under realistic 
 Chilean parameters, the simulations suggest caution against beginning the 
@@ -666,62 +665,53 @@ Chile has a well-documented problem of low and uneven contribution density,
 driven by informal employment, labor-market gaps, and gender-specific patterns. 
 Since $R^*$ depends directly on the fraction of months in which the worker 
 actually contributes, understanding how density affects the simulation results is essential.
-\begin{figure}[!htbp]
+
+
+Figure~\ref{fig:contribution-density} shows two curves plotted against
+contribution density: the fraction of candidate glidepaths that clear the
+$\Psi > 50\%$ success threshold, and the average $\Psi$ across all (successful and unsuccessful) glidepaths.
+The picture reveals three distinct regions.
+
+For densities at or below $58\%$, no glidepath in our grid achieves
+$\Psi > 50\%$: the required return $R^*$ is too high to be reached under
+any glidepath. In this regime, the problem is simply
+infeasible---no portfolio investment strategy can compensate for insufficient contributions.
+
+For densities at or above $68\%$, every glidepath in the grid achieves
+$\Psi > 50\%$: the required return $R^*$ is low enough that even the most
+conservative glidepaths succeed.
+
+Between these boundaries---roughly $59\%$ to $67\%$---lies the region where  glidepath design matters most. Within this window, the share of successful
+glidepaths rises steeply: $9.5\%$ at density $59\%$, $31.4\%$ at $60\%$,
+$56.2\%$ at $61\%$, and $98.6\%$ by $67\%$. This transition spans less than
+ten percentage points of density, which is remarkably narrow.
+
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.9\textwidth]{figures/density_vs_success.png}
   \caption{Percentage of successful glidepaths  ($\Psi>50\%$) and average success rate across all glidepaths, as a function of contribution density.}
   \label{fig:contribution-density}
 \end{figure}
 
-Figure~\ref{fig:contribution-density} shows two curves plotted against 
-contribution density: the fraction of candidate glidepaths that clear the 
-$\Psi > 50\%$ success threshold, and the average $\Psi$ across all (sucessful and unsucessful) glidepaths. 
-The picture reveals three distinct regions.
-
-For densities at or below $58\%$, no glidepath in our grid achieves 
-$\Psi > 50\%$: the required return $R^*$ is too high to be reached under 
-any glidepath. In this regime, the problem is simply 
-infeasible---no portfolio investment strategy can compensate for 
-insufficient contributions.
-
-For densities at or above $68\%$, every glidepath in the grid achieves 
-$\Psi > 50\%$: the required return $R^*$ is low enough that even the most 
-conservative glidepaths succeed.
-
-Between these boundaries---roughly $59\%$ to $67\%$---lies the region where 
-glidepath design matters most. Within this window, the share of successful 
-glidepaths rises steeply: $9.5\%$ at density $59\%$, $31.4\%$ at $60\%$, 
-$56.2\%$ at $61\%$, and $98.6\%$ by $67\%$. This transition spans less than 
-ten percentage points of density, which is remarkably narrow.
-
 This is directly relevant for the Chilean case. The observed male density 
-($58.3\%$) falls below the lower bound of the feasible region---meaning that 
-under the baseline assumptions, no successful glidepath exists for the average 
-Chilean male worker. The observed female density ($49.6\%$) lies well outside 
-it. At current Chilean densities, the glidepath design problem is simply 
-infeasible for the representative worker.
+($58.3\%$) falls below the lower bound of the feasible region---meaning that under the baseline assumptions, no successful glidepath exists for the average Chilean male worker. The observed female density ($49.6\%$) lies well outside it. At current Chilean densities, the glidepath design problem is simply infeasible for the representative worker.
 
 A critical implication is that portfolio investment decisions are not a 
 substitute for adequate contribution density. If density cannot be raised 
-materially above $58\%$, other levers---such as the contribution rate, the 
-retirement age, or the replacement rate target---must be reconsidered, since 
-no glidepath can deliver the required return ($R^*$) under the baseline assumptions at those 
-density levels.
-\paragraph{Gender gap.}
+materially above $58\%$, other levers---such as the contribution rate, the retirement age, or the replacement rate target---must be reconsidered, since no glidepath can deliver the required return ($R^*$) under the baseline assumptions at those density levels.
 
+\paragraph{Gender gap.}
 
 The preceding analysis relied on a gender-neutral representative worker. 
 In reality, three key parameters differ sharply between men and women in 
 Chile, all pushing $R^*$ higher for women: (i) earlier retirement age 
-(60 vs.\ 65 years); (ii) longer post-retirement life expectancy (90 vs.\ 86 
-years); and (iii) lower contribution density ($49.6\%$ vs.\ $58.3\%$) 
-\cite{dl3500,sp2023mortality,sp2024ficha}. Consequently, the gender-specific 
-required return differ substantially: $R^* = 5.3\%$ for men and 
+(60 vs.\ 65 years); (ii) longer post-retirement life expectancy (90 vs.\ 86 years); and (iii) lower contribution density ($49.6\%$ vs.\ $58.3\%$)
+\cite{dl3500,sp2023mortality,sp2024ficha}. Consequently, the gender-specific required returns differ substantially: $R^* = 5.3\%$ for men and
 $R^* = 8.4\%$ for women (Table~\ref{tab:gender}).
 
 
 
-\begin{table}[t]
+\begin{table}[H]
   \centering
   \caption{Gender-specific baseline simulation parameters.}
   \label{tab:gender}
@@ -839,7 +829,7 @@ strengthening solidarity mechanisms are required.
 
 A further consideration concerns the specification of the eligible assets universe. The objective of the exercise is not to identify the best possible collection of indices or investment strategies, nor to solve a portfolio-optimization problem over the full set of instruments available to Chilean pension managers. Rather, this study  uses a compact and economically plausible set of indices spanning the main asset classes relevant for the Chilean pension system: local fixed income, local equities,  global fixed income, global equities, and alternative assets. The eligible universe was treated as an input specification --- its composition was not the object of any search, and we did not iterate over alternative index sets in order to maximize $\Psi$. Likewise, the asset universe was not tuned \textit{ex post} to improve the reported results. This is important because the purpose of the exercise is to evaluate whether a given CVaR-limit glidepath leaves a sufficiently large set of feasible portfolio trajectories capable of reaching the target return, not to overfit the investment universe itself.
 
-This distinction matters for the interpretation of the results. A richer asset universe, or a more carefully selected set of active strategies, could improve the attainable frontier available to an optimizing manager, and in that sense the current universe should not be read as an exhaustive opportunity set. However, $\Psi$ is not the return of an optimized portfolio --- it is an average  measure over sampled feasible portfolios--return scenarios combinations. Expanding the asset universe can therefore shift the results in either direction: adding high-quality return sources may improve $\Psi$, while adding low-return, redundant (highly correlated)  or poorly compensated assets may lower it. The exercise should therefore be read as a test of whether a representative, but not exhaustive, investment universe is capable of supporting glidepaths that achieve $\Psi > 50\%$.
+This distinction matters for the interpretation of the results. A richer asset universe, or a more carefully selected set of active strategies, could improve the options available to an optimizing manager, and in that sense the current universe should not be read as an exhaustive opportunity set. However, $\Psi$ is not associated with an optimized portfolio --- it is an average  measure over sampled feasible portfolios--return scenarios combinations. Expanding the asset universe can therefore shift the results in either direction: adding high-quality return sources may improve $\Psi$, while adding low-return, redundant (highly correlated)  or poorly compensated assets may lower it. The exercise should therefore be read as a test of whether a representative, but not exhaustive, investment universe is capable of supporting glidepaths that achieve $\Psi > 50\%$.
 
 \subsection{Diversification and Liquidity Considerations}
 
@@ -851,7 +841,7 @@ Consistent with this interpretation, as a diagnostic check, we compute the Herfi
 \[
 \mathrm{HHI}(\Omega)=\sum_{j=1}^{N}\omega_j^2,
 \]
-where $\omega_j$ is the portfolio weight of asset $j$ and $N$ is the number of eligible indices. Lower values indicate more diversified allocations; with nine eligible indices, the equal-weight lower bound is $1/9 \approx 0.111$. For the five successful boundary glidepaths reported in Table~\ref{tab:boundary}, the HHI is remarkably stable across curves. Across 4.8 million allocation-month observations per curve, the mean HHI ranges from 0.1987 to 0.1996, the median ranges from 0.1885 to 0.1888, and the 90th percentile remains between 0.259 and 0.261. In effective-number terms, $1/\mathrm{HHI}$, the typical sampled portfolio is therefore equivalent to roughly five equally weighted positions. This evidence suggests that the randomly sampled feasible allocations are not dominated by highly concentrated corner portfolios.
+where $\omega_j$ is the portfolio weight of asset $j$ and $N$ is the number of eligible indices. Lower values indicate more diversified allocations; with nine eligible indices, the equal-weight lower bound is $1/9 \approx 0.111$. For the five successful boundary glidepaths reported in Table~\ref{tab:boundary}, the HHI is remarkably stable across curves. Across 4.8 million allocation-month observations per curve, the mean HHI ranges from 0.1987 to 0.1996, the median ranges from 0.1885 to 0.1888, and the 90th percentile remains between 0.259 and 0.261. In effective-number terms, the typical sampled portfolio is therefore equivalent to roughly five equally weighted positions (since 1/0.19 $\thickapprox$ 5). This evidence suggests that the randomly sampled feasible allocations are not dominated by highly concentrated corner portfolios.
 
 Second, the eligible assets are represented by broad market indices. These indices serve as proxies for diversified investment vehicles, and most correspond to liquid public-market exposures. The relevant unit of allocation in the exercise is therefore not an individual security, but an already diversified investment strategy.
 
@@ -859,15 +849,15 @@ Third, in the particular Chilean calibration studied here, the terminal CVaR lim
 
 \subsection{Terminal CVaR, Post-Retirement Risk, and Duration Matching in the Chilean System}
 
-The baseline exercise in this paper models the retirement objective through Chilean \emph{rentas vitalicias}, or life annuities. This is a natural benchmark for a minimum-sufficiency exercise because the annuity converts the accumulated balance at retirement into a lifetime pension and removes post-retirement investment and longevity risk from the worker. It is not, however, the only pension modality in Chile. Pension modality choices should be distinguished between the full flow of new retirees and the subset of retirees who enter the Sistema de Consultas y Ofertas de Montos de Pensión (SCOMP), the electronic quotation system through which eligible retirees request and compare pension offers. In the twelve-month window from July 2024 to June 2025, the Superintendencia de Pensiones reports that 43.8\% of new retirees entered SCOMP, while the remaining 56.2\% did not meet the requirements to opt for a life annuity and therefore retired directly under programmed withdrawal. Among SCOMP entrants, annuity-based modalities accounted for 54.6\% of accepted pensions, while programmed withdrawal accounted for 45.4\%. Measured over the full universe of new retirees, however, programmed withdrawal remained the dominant modality, representing approximately 76\% of new pensions \cite{spScomp2025}.
+The baseline exercise in this paper models the retirement objective through Chilean \emph{rentas vitalicias}, or life annuities. This is a natural benchmark for a minimum-sufficiency exercise because the annuity converts the accumulated balance at retirement into a lifetime pension and removes post-retirement investment and longevity risk from the worker. It is not, however, the only pension modality in Chile. Pension modality choices should be distinguished between the full flow of new retirees and the subset of retirees who enter the \emph{Sistema de Consultas y Ofertas de Montos de Pensión} (SCOMP), the electronic quotation system through which eligible retirees request and compare pension offers. In the twelve-month window from July 2024 to June 2025, the \emph{Superintendencia de Pensiones} reports that 43.8\% of new retirees entered SCOMP, while the remaining 56.2\% did not meet the requirements to opt for a life annuity and therefore retired directly under scheduled withdrawal. Among SCOMP entrants, annuity-based modalities accounted for 54.6\% of accepted pensions, while scheduled  withdrawal accounted for 45.4\%. Measured over the full universe of new retirees, however, scheduled withdrawal remained the dominant modality, representing approximately 76\% of new pensions \cite{spScomp2025}.
 
-The distinction matters for the interpretation of the terminal date $\TB$. Under a life-annuity benchmark, $\TB$ is the date at which the accumulated balance is converted into a pension contract, so terminal wealth and terminal portfolio risk are central. Under programmed withdrawal, by contrast, the retiree remains exposed to investment returns after retirement, and a post-retirement glidepath could in principle continue beyond age 65. In that case, the same framework could be extended by increasing the terminal horizon and modeling a decumulation-stage CVaR path, although that extension is outside the scope of this paper. A longer horizon would expand the admissible dynamic allocation problem relative to the baseline exercise, allowing portfolios to maintain risk exposure and carry for more years, with potentially higher expected returns. The annuity-based baseline should therefore be read as conservative with respect to post-retirement investment opportunities.
+The distinction matters for the interpretation of the terminal date $\TB$. Under a life-annuity benchmark, $\TB$ is the date at which the accumulated balance is converted into a pension contract, so terminal wealth and terminal portfolio risk are central. Under scheduled withdrawal, by contrast, the retiree remains exposed to investment returns after retirement, and a post-retirement glidepath could in principle continue beyond age 65. In that case, the same framework could be extended by increasing the terminal horizon and modeling a decumulation-stage CVaR path, although that extension is outside the scope of this paper. A longer horizon would expand the admissible dynamic allocation problem relative to the baseline exercise, allowing portfolios to maintain risk exposure and carry for more years, with potentially higher expected returns. The annuity-based baseline should therefore be read as conservative with respect to post-retirement investment opportunities.
 
 A separate implementation issue concerns the potential interaction between the terminal CVaR limit and any pension-design objective related to duration matching. This is relevant because, under the life-annuity benchmark, a material local duration mismatch in the final years of accumulation could expose workers to losses in accumulated capital precisely when the balance is about to be converted into a life annuity. This concern is not currently embedded as an explicit investment limit for Chile's most conservative risk-target pension fund, Fund E, and some policy discussions have instead emphasized terminal portfolios with very low duration or money-market-like risk. Still, it is useful to verify that the CVaR framework can encompass duration-matching considerations if they become relevant for regulatory design.
 
 In the exercise in this paper, the local corporate fixed-income index used in the asset universe provides one example of an admissible terminal asset with local duration: its historical monthly CVaR is 2.87\%, below the terminal 3\% limit, and its duration is approximately four years. However, a regulator could also require terminal portfolios to hold longer-duration UF-denominated fixed income, where UF refers to Chile's inflation-indexed unit of account, in order to resemble the duration profile of annuity liabilities.
 
-To gauge the order of magnitude, we perform a simple rate-risk stress using the Banco Central de Chile daily series for the ten-year swap rate in UF \cite{bcchSpcUf10}. This is a fixed UF rate swap against the local overnight interbank funding rate. We convert the data to monthly changes over the same sample window used in the paper and compute the 90\% CVaR of monthly rate increases. The resulting adverse upward rate move is approximately 43 basis points. Applying this shock to a stylized ten-year UF bond with modified duration close to 9 gives a gross price-loss CVaR of about 3.9\%. After allowing for monthly carry of 5\% per year divided by 12, the net loss is approximately 3.49\%.
+To gauge the order of magnitude of this issue, we perform a simple rate-risk stress using the \emph{Banco Central de Chile} daily series for the ten-year swap rate in UF \cite{bcchSpcUf10}. This is a fixed UF rate swap against the local overnight interbank funding rate. We convert the data to monthly changes over the same sample window used in the paper and compute the 90\% CVaR of monthly rate increases. The resulting adverse upward rate move is approximately 43 basis points. Applying this shock to a stylized ten-year UF bond with modified duration close to 9 gives a gross price-loss CVaR of about 3.9\%. After allowing for monthly carry of 5\% per year divided by 12, the net loss is approximately 3.49\%.
 
 This calculation suggests that a terminal CVaR limit of 3\% may be slightly conservative if the regulatory objective includes accommodating materially longer-duration UF portfolios intended to match life-annuity liabilities. If policymakers wanted terminal portfolios to accept this higher interest-rate sensitivity, a terminal CVaR limit closer to 3.5\% or 4\% could be considered. Such a relaxation would expand the admissible set relative to the baseline exercise. Since higher CVaR limits allow portfolios with greater risk exposure and, in this setting, potentially higher expected return and carry, the baseline results should be read as conservative with respect to terminal duration accommodation. More generally, any such relaxation would use the results in this paper as a conservative baseline rather than overturning the direction of the interpretation.
 
@@ -1018,12 +1008,14 @@ quantifiable,  the method presented provides policymakers with a transparent and
 flexible tool for evaluating competing glidepath (TDF) designs.  
 \end{itemize}
 
-
 \bibliographystyle{unsrtnat}
 \bibliography{references}
 
+% Este arreglo cambia le nombre del apendice:
 \clearpage
-\appendix
+\renewcommand{\appendixname}{APPENDIX}
+\begin{appendices}
 \input{appendix}
+\end{appendices}
 
 \end{document}

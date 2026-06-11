@@ -17,6 +17,7 @@ venv/
 
 # Generated outputs
 outputs/
+paper/figures/old/
 
 # LaTeX
 *.aux
