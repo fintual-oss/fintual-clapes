@@ -22,7 +22,7 @@ class PensionParameters:
         self.age_start_work_female = 25   # Age when women start working
         self.age_retire_male = 65         # Legal retirement age for men
         self.age_retire_female = 60       # Legal retirement age for women
-        self.life_expectancy_male = 88    # Life expectancy for men
+        self.life_expectancy_male = 86    # Life expectancy for men (86 or 88)
         self.life_expectancy_female = 90  # Life expectancy for women
         
         # ========================================
@@ -39,12 +39,12 @@ class PensionParameters:
         # ========================================
         # Return during accumulation phase: this parameter will be found via binary search
         # Return after retirement (real, above UF inflation)
-        self.return_post_retirement = 0.032  # 2.5% real (equivalent to UF+2.5%)
+        self.return_post_retirement = 0.032  # 3.2% real (equivalent to UF+3.2%)
         
         # ========================================
         # TARGET PARAMETERS
         # ========================================
-        self.replacement_rate_target = 0.63  # Target replacement rate (63%)
+        self.replacement_rate_target = 0.63  # Target replacement rate
         
         # Number of months to average for replacement rate calculation
         # Options: 12 (last year) or 120 (last 10 years)
@@ -59,11 +59,11 @@ class PensionParameters:
         
         # Contribution density for men
         self.contribution_density_male_no_gaps = 1.0    # 100% - no gaps
-        self.contribution_density_male_with_gaps = 0.60  # 58.3% - with gaps
+        self.contribution_density_male_with_gaps = 0.583  # 58.3% (60%) - with gaps
         
         # Contribution density for women
         self.contribution_density_female_no_gaps = 1.0   # 100% - no gaps
-        self.contribution_density_female_with_gaps = 0.60 # 49.6% - with gaps
+        self.contribution_density_female_with_gaps = 0.496 # 49.6% - with gaps
         
         # ========================================
         # BINARY SEARCH PARAMETERS

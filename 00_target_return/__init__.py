@@ -16,7 +16,7 @@
 #   
 #   Configuration:
 #   - Edit parameters.py to modify demographic and economic assumptions
-#   - Default target: 60% replacement rate
+#   - Default target: 63% replacement rate
 #   - Results in UF (Chilean inflation-indexed units)
 #   
 # ===============================================================

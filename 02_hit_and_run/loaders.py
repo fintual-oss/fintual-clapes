@@ -6,7 +6,7 @@ def load_glidepaths_universe(glides_file: str):
     Load CVaR glidepaths from the step 01 output file.
     
     Expected structure:
-      - Rows: t_start, t_A, A, B, t_B, t_end, Month_1, ..., Month_480
+      - Rows: t_start, t_A, A, B, t_B, t_end, Month_1, ..., Month_N
       - Columns: curve_0001, curve_0002, ..., curve_XXXX
     
     Parameters:

@@ -60,7 +60,7 @@ def main():
     print()
     print("NEXT STEP:")
     print("Use the 'Required Return (%)' values from the Summary sheet")
-    print("to calibrate TARGET_RETURN_THRESHOLD in step 03_trajectory_analyzer")
+    print("to calibrate TARGET_RETURN_THRESHOLD in step 04_full_pool_analyzer")
     print()
 
 
