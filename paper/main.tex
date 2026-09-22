@@ -24,6 +24,7 @@
 
 \setlength{\parindent}{1.25em}
 \setlength{\parskip}{3pt}
+\setlength{\emergencystretch}{1em}
 \linespread{1.05}
 
 \captionsetup{
@@ -47,7 +48,7 @@ Israel Muñoz\textsuperscript{b}, Fernando Suárez\textsuperscript{a}, Omar Larr
 \small \textsuperscript{b} Clapes UC, Pontificia Universidad Católica de Chile, Santiago, Chile.\\
 \small Contact email: \href{mailto:research@fintual.com}{research@fintual.com}
 }
-\date{\today}
+\date{September 22, 2026}
 
 \begin{document}
 
@@ -269,7 +270,7 @@ Formally, the CVaR limit, $L(t)$, for a time  $t$, is given by:
 \begin{equation}
 L(t)=
 \begin{cases}
-A, & t =  \TA, \\
+A, & \Tstart \leq t \leq \TA, \\
 A + \dfrac{B-A}{\TB-\TA}(t-\TA), & \TA < t < \TB, \\
 B, & t = \TB,
 \end{cases}
