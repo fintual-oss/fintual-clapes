@@ -308,11 +308,18 @@ class CVaRPortfolioSampler:
 
         samples = []
         n_total = burn_in + n_samples
+        max_attempts = max(n_total * 20, 1000)
+        step = 0
+        attempts = 0
 
-        for i in range(n_total):
+        while step < n_total and attempts < max_attempts:
+            attempts += 1
             # Generate random direction on unit sphere
             direction = np.random.randn(n_assets)
-            direction = direction / np.linalg.norm(direction)
+            direction_norm = np.linalg.norm(direction)
+            if direction_norm < 1e-10:
+                continue
+            direction = direction / direction_norm
 
             # Project onto hyperplane sum(w) = 0
             direction = self._project_direction_onto_simplex(direction)
@@ -343,8 +350,15 @@ class CVaRPortfolioSampler:
                 current_point = new_point
 
             # Collect sample after burn-in
-            if i >= burn_in:
+            if step >= burn_in:
                 samples.append(current_point.copy())
+            step += 1
+
+        if len(samples) < n_samples:
+            raise RuntimeError(
+                f"Could not generate {n_samples} feasible portfolios after {attempts} attempts "
+                f"(generated {len(samples)})."
+            )
 
         return np.array(samples)
 
@@ -393,11 +407,18 @@ class CVaRPortfolioSampler:
 
         samples = []
         n_total = burn_in + n_samples
+        max_attempts = max(n_total * 20, 1000)
+        step = 0
+        attempts = 0
 
-        for i in range(n_total):
+        while step < n_total and attempts < max_attempts:
+            attempts += 1
             # Generate random direction on unit sphere
             direction = np.random.randn(n_assets)
-            direction = direction / np.linalg.norm(direction)
+            direction_norm = np.linalg.norm(direction)
+            if direction_norm < 1e-10:
+                continue
+            direction = direction / direction_norm
 
             # Project onto hyperplane sum(w) = 0
             direction = self._project_direction_onto_simplex(direction)
@@ -428,8 +449,15 @@ class CVaRPortfolioSampler:
                 current_point = new_point
 
             # Collect sample after burn-in
-            if i >= burn_in:
+            if step >= burn_in:
                 samples.append(current_point.copy())
+            step += 1
+
+        if len(samples) < n_samples:
+            raise RuntimeError(
+                f"Could not generate {n_samples} feasible portfolios after {attempts} attempts "
+                f"(generated {len(samples)})."
+            )
 
         # Convert to numpy array and return
         return np.array(samples)

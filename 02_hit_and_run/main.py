@@ -42,7 +42,7 @@ RETURNS_SEED  = 111  # Seed for simulated returns (shared with Module 03)
 HIT_RUN_SEED  = 222  # Seed for Hit-and-Run directions
 
 # Curve selection
-CURVE_START = "None"  # Primera curva a procesar (None = desde el inicio)
+CURVE_START = None  # Primera curva a procesar (None = desde el inicio)
 CURVE_END   = None 
 
 # Parallelization (months within a curve run in parallel)
@@ -227,8 +227,10 @@ def main() -> None:
     all_curves = glides_df.columns.tolist()
     print(f"      Total curves available: {len(all_curves)}")
 
-    idx_start = all_curves.index(CURVE_START) if CURVE_START else 0
-    idx_end   = all_curves.index(CURVE_END) + 1 if CURVE_END else len(all_curves)
+    curve_start = None if CURVE_START in (None, "None", "") else CURVE_START
+    curve_end   = None if CURVE_END in (None, "None", "") else CURVE_END
+    idx_start = all_curves.index(curve_start) if curve_start else 0
+    idx_end   = all_curves.index(curve_end) + 1 if curve_end else len(all_curves)
     curves    = all_curves[idx_start:idx_end]
 
     if not curves:
